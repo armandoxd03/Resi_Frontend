@@ -1,6 +1,6 @@
 class ApiService {
   constructor() {
-    this.baseURL = import.meta.env.VITE_API_URL || 'https://resilinked-9mf9.vercel.app/api';
+    this.baseURL = import.meta.env.VITE_API_URL || 'https://resi-backend-1.onrender.com';
     this.DEBUG = true; // Set this to true to enable debug logging
   }
 
