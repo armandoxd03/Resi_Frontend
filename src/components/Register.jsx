@@ -389,16 +389,51 @@ function Register() {
 
           {formData.userType === 'employee' && (
             <div className="form-group">
-              <label htmlFor="skills">Skills (Optional)</label>
-              <input
-                type="text"
-                id="skills"
-                name="skills"
-                value={formData.skills}
-                onChange={handleInputChange}
-                placeholder="e.g. Plumbing, Carpentry, Cleaning (comma separated)"
-              />
-              <small>Separate multiple skills with commas</small>
+              <label>Skills <span style={{color:'red'}}>*</span></label>
+              <div className="checkbox-group" style={{maxHeight:'120px',overflowY:'auto',border:'1px solid #e2e8f0',borderRadius:'6px',padding:'0.5em',marginBottom:'0.5em'}}>
+                {['Plumbing','Carpentry','Cleaning','Electrical','Painting','Gardening','Cooking','Driving','Babysitting','Tutoring','IT Support','Customer Service'].map(skill => (
+                  <label key={skill} style={{marginRight:'1em'}}>
+                    <input
+                      type="checkbox"
+                      name="skills"
+                      value={skill}
+                      checked={formData.skills.includes(skill)}
+                      onChange={e => {
+                        const checked = e.target.checked;
+                        setFormData(prev => ({
+                          ...prev,
+                          skills: checked
+                            ? [...prev.skills, skill]
+                            : prev.skills.filter(s => s !== skill)
+                        }));
+                      }}
+                    /> {skill}
+                  </label>
+                ))}
+              </div>
+              <div className="form-group">
+                <label htmlFor="otherSkill">Other:</label>
+                <input
+                  type="text"
+                  id="otherSkill"
+                  name="otherSkill"
+                  value={formData.otherSkill || ''}
+                  onChange={e => setFormData(prev => ({...prev, otherSkill: e.target.value}))}
+                  placeholder="Add custom skill"
+                />
+                <button type="button" className="btn btn-secondary" style={{marginLeft:'1em'}}
+                  onClick={() => {
+                    if (formData.otherSkill && !formData.skills.includes(formData.otherSkill)) {
+                      setFormData(prev => ({
+                        ...prev,
+                        skills: [...prev.skills, prev.otherSkill],
+                        otherSkill: ''
+                      }));
+                    }
+                  }}
+                >Add</button>
+              </div>
+              <small>Select all that apply. Add custom skills if needed.</small>
             </div>
           )}
 

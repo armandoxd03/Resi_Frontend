@@ -334,24 +334,23 @@ function Settings() {
                   required
                   minLength="8"
                 />
-                
-                {passwordData.newPassword && (
-                  <div className="password-requirements">
-                    <h4>Password Requirements:</h4>
-                    <ul>
-                      {Object.entries(validatePassword(passwordData.newPassword).requirements).map(([key, met]) => (
-                        <li key={key} className={met ? 'met' : 'unmet'}>
-                          {key === 'length' && 'At least 8 characters'}
-                          {key === 'uppercase' && 'One uppercase letter'}
-                          {key === 'lowercase' && 'One lowercase letter'}
-                          {key === 'number' && 'One number'}
-                          {key === 'special' && 'One special character'}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
               </div>
+              {passwordData.newPassword && (
+                <div className="password-requirements">
+                  <h4>Password Requirements:</h4>
+                  <ul>
+                    {Object.entries(validatePassword(passwordData.newPassword).requirements).map(([key, met]) => (
+                      <li key={key} className={met ? 'met' : 'unmet'}>
+                        {key === 'length' && 'At least 8 characters'}
+                        {key === 'uppercase' && 'One uppercase letter'}
+                        {key === 'lowercase' && 'One lowercase letter'}
+                        {key === 'number' && 'One number'}
+                        {key === 'special' && 'One special character'}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               <div className="form-group">
                 <label>Confirm New Password</label>

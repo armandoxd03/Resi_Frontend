@@ -17,33 +17,33 @@ function Profile() {
   const { success, error: showError } = useAlert()
 
   useEffect(() => {
-    loadProfile()
-    loadRatings()
+      loadProfile()
+      loadRatings()
   }, [])
 
-  const loadProfile = async () => {
-    try {
-      const data = await apiService.getProfile()
-      setProfile(data.user)
-      setEditFormData(data.user)
-    } catch (err) {
-      setError('Failed to load profile')
-      console.error('Profile load error:', err)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const loadRatings = async () => {
-    try {
-      if (user?.userId) {
-        const ratingsResponse = await apiService.getUserRatings(user.userId)
-        setRatings(ratingsResponse.ratings || [])
+    const loadProfile = async () => {
+      try {
+        const data = await apiService.getProfileMe()
+        setProfile(data.user)
+        setEditFormData(data.user)
+      } catch (err) {
+        setError('Failed to load profile')
+        console.error('Profile load error:', err)
+      } finally {
+        setLoading(false)
       }
-    } catch (err) {
-      console.error('Failed to load ratings:', err)
     }
-  }
+
+    const loadRatings = async () => {
+      try {
+        // Wait for profile to load first
+        if (!profile?._id) return;
+        const ratingsResponse = await apiService.getUserRatings(profile._id)
+        setRatings(ratingsResponse.ratings || [])
+      } catch (err) {
+        console.error('Failed to load ratings:', err)
+      }
+    }
 
   const handleProfilePictureUpload = async (event) => {
     const file = event.target.files[0]
@@ -367,15 +367,59 @@ function Profile() {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="skills">Skills (comma separated)</label>
-                  <input
-                    type="text"
-                    id="skills"
-                    name="skills"
-                    value={editFormData.skills}
-                    onChange={handleInputChange}
-                    placeholder="e.g. Plumbing, Carpentry, Cleaning"
-                  />
+                  <div className="skills-card">
+                    <div className="skills-header">
+                      <h3>Required Skills <span style={{color:'red'}}>*</span></h3>
+                      <p className="skills-desc">Select all that apply. Add custom skills if needed.</p>
+                    </div>
+                    <div className="pro-checkbox-group-grid">
+                      {['Plumbing','Carpentry','Cleaning','Electrical','Painting','Gardening','Cooking','Driving','Babysitting','Tutoring','IT Support','Customer Service'].map(skill => (
+                        <label key={skill} className="pro-checkbox-label">
+                          <input
+                            type="checkbox"
+                            name="skills"
+                            value={skill}
+                            checked={editFormData.skills.includes(skill)}
+                            onChange={e => {
+                              const checked = e.target.checked;
+                              setEditFormData(prev => ({
+                                ...prev,
+                                skills: checked
+                                  ? [...prev.skills, skill]
+                                  : prev.skills.filter(s => s !== skill)
+                              }));
+                            }}
+                            className="pro-checkbox"
+                          />
+                          <span className="pro-checkbox-custom"></span>
+                          <span className="pro-checkbox-text">{skill}</span>
+                        </label>
+                      ))}
+                    </div>
+                    <div className="other-skill-row">
+                      <label htmlFor="otherSkill" className="other-label">Other:</label>
+                      <input
+                        type="text"
+                        id="otherSkill"
+                        name="otherSkill"
+                        value={editFormData.otherSkill || ''}
+                        onChange={e => setEditFormData(prev => ({...prev, otherSkill: e.target.value}))}
+                        placeholder="Add custom skill"
+                        className="other-input"
+                      />
+                      <button type="button" className="other-btn"
+                        onClick={() => {
+                          if (editFormData.otherSkill && !editFormData.skills.includes(editFormData.otherSkill)) {
+                            setEditFormData(prev => ({
+                              ...prev,
+                              skills: [...prev.skills, prev.otherSkill],
+                              otherSkill: ''
+                            }));
+                          }
+                        }}
+                      >Add</button>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="modal-actions">
@@ -699,20 +743,121 @@ function Profile() {
           flex: 1;
         }
 
-        .skills-list {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 0.5rem;
-          justify-content: flex-end;
+        .skills-card {
+          background: #fff;
+          border-radius: 12px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+          padding: 1em 0.75em;
+          margin-bottom: 1em;
+          border: 1px solid #e2e8f0;
         }
-
-        .skill-tag {
-          background: #e2e8f0;
+        .skills-header h3 {
+          margin: 0;
+          font-size: 1.05rem;
+          font-weight: 700;
           color: #2b6cb0;
-          padding: 0.25rem 0.75rem;
-          border-radius: 20px;
-          font-size: 0.8rem;
+        }
+        .skills-desc {
+          font-size: 0.92rem;
+          color: #718096;
+          margin-bottom: 0.25em;
+        }
+        .pro-checkbox-group-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 0.25em 0.5em;
+          max-height: 80px;
+          overflow-y: auto;
+          border-radius: 8px;
+          border: 1px solid #e2e8f0;
+          background: #f7fafc;
+          padding: 0.5em;
+          margin-bottom: 0.5em;
+          box-shadow: 0 1px 4px rgba(44,62,80,0.04);
+        }
+        .pro-checkbox-label {
+          display: flex;
+          align-items: center;
+          gap: 0.4em;
+          font-size: 0.98rem;
           font-weight: 500;
+          color: #2d3748;
+          cursor: pointer;
+          position: relative;
+        }
+        .pro-checkbox {
+          opacity: 0;
+          position: absolute;
+        }
+        .pro-checkbox-custom {
+          width: 18px;
+          height: 18px;
+          border-radius: 6px;
+          border: 2px solid #cbd5e0;
+          background: #fff;
+          display: inline-block;
+          transition: border-color 0.2s;
+          margin-right: 0.15em;
+        }
+        .pro-checkbox:checked + .pro-checkbox-custom {
+          border-color: #2b6cb0;
+          background: #ebf8ff;
+        }
+        .pro-checkbox:checked + .pro-checkbox-custom:after {
+          content: '';
+          display: block;
+          width: 8px;
+          height: 8px;
+          margin: 3px auto;
+          border-radius: 2px;
+          background: #2b6cb0;
+        }
+        .pro-checkbox-text {
+          margin-left: 0.15em;
+        }
+        .other-skill-row {
+          display: flex;
+          align-items: center;
+          gap: 0.5em;
+          margin-bottom: 0.25em;
+        }
+        .other-label {
+          font-weight: 600;
+          color: #4a5568;
+        }
+        .other-input {
+          border: 1px solid #cbd5e0;
+          border-radius: 6px;
+          padding: 0.4em 0.8em;
+          font-size: 0.98rem;
+          outline: none;
+          transition: border-color 0.2s;
+        }
+        .other-input:focus {
+          border-color: #2b6cb0;
+        }
+        .other-btn {
+          background: #2b6cb0;
+          color: #fff;
+          border: none;
+          border-radius: 6px;
+          padding: 0.4em 1em;
+          font-size: 0.98rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: background 0.2s;
+        }
+        .other-btn:hover {
+          background: #234e7d;
+        }
+        @media (max-width: 768px) {
+          .skills-card {
+            padding: 0.5em 0.25em;
+          }
+          .pro-checkbox-group-grid {
+            grid-template-columns: 1fr;
+            max-height: 120px;
+          }
         }
 
         .profile-actions {

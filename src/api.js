@@ -1,4 +1,34 @@
 class ApiService {
+  // ================= Change Password =================
+  async changePassword({ currentPassword, newPassword }) {
+    return this.request("/users/me/password", {
+      method: "PUT",
+      body: { currentPassword, newPassword },
+    });
+  }
+  // ================= Get Profile (for Settings.jsx compatibility) =================
+  async getProfile() {
+    return this.request("/users/me");
+  }
+  // ================= Job Creation =================
+  async createJob(jobData) {
+    // jobData should include: title, price, barangay, description, skillsRequired (array), location (optional)
+    return this.request("/jobs", {
+      method: "POST",
+      body: jobData,
+    });
+  }
+  // ================= Profile Update =================
+  async updateProfile(updates) {
+    return this.request("/users/me", {
+      method: "PUT",
+      body: updates,
+    });
+  }
+  // ================= Ratings =================
+  async getUserRatings(userId) {
+    return this.request(`/ratings/user/${userId}`);
+  }
   constructor() {
     this.baseURL =
       import.meta.env.VITE_API_URL ||
@@ -74,6 +104,11 @@ class ApiService {
         if (contentType?.includes("application/json")) {
           console.log("📦 Response data:", data);
         }
+      }
+
+      // Attach status to response data for frontend logic
+      if (typeof data === 'object' && data !== null) {
+        data._httpStatus = response.status;
       }
 
       if (!response.ok) {
@@ -184,6 +219,21 @@ class ApiService {
   }
 
   // ... (all other methods remain unchanged, just using this.request with normalized endpoints)
+
+  // ================= Jobs =================
+  async getPopularJobs() {
+    return this.request("/jobs/popular");
+  }
+
+  async getJobs(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/jobs${query ? "?" + query : ""}`);
+  }
+
+  // ================= Profile =================
+  async getProfileMe() {
+    return this.request(`/users/me`);
+  }
 
   // ================= Health Check =================
   async healthCheck() {

@@ -73,33 +73,37 @@ function EmployeeDashboard() {
 
   const loadEmployeeStats = async () => {
     try {
-      const userData = JSON.parse(localStorage.getItem('userData') || '{}')
-      const response = await apiService.getProfile(userData.userId)
-      
+      const userId = user?.userId;
+      const token = localStorage.getItem('token');
+      if (!token || !userId) {
+        showError('Session expired. Please login again.');
+        navigate('/login');
+        return;
+      }
+  const response = await apiService.getProfileMe();
       if (response.user) {
         setStats({
           applicationsCount: response.user.applicationCount || 0,
           offersCount: response.user.offersCount || 0,
           viewsCount: response.user.profileViews || 0,
           rating: 0
-        })
-
+        });
         // Load ratings separately
         try {
-          const ratingsResponse = await apiService.getUserRatings(userData.userId)
+          const ratingsResponse = await apiService.getUserRatings(response.user?._id);
           if (ratingsResponse.averageRating) {
             setStats(prev => ({
               ...prev,
               rating: ratingsResponse.averageRating
-            }))
+            }));
           }
         } catch (ratingError) {
-          console.error('Error loading ratings:', ratingError)
+          console.error('Error loading ratings:', ratingError);
         }
       }
     } catch (error) {
-      console.error('Error loading employee stats:', error)
-      showError('Failed to load dashboard statistics')
+      console.error('Error loading employee stats:', error);
+      showError('Failed to load dashboard statistics');
     }
   }
 
