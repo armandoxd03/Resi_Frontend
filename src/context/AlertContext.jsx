@@ -207,10 +207,20 @@ function Alert({ alert, onClose }) {
           padding: 0;
           margin-left: 8px;
           opacity: 0.7;
+          width: 40px;
+          height: 40px;
+          aspect-ratio: 1/1;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: background 0.2s;
+          padding: 0;
         }
 
         .alert-close:hover {
           opacity: 1;
+          background: rgba(0,0,0,0.08);
         }
 
         @keyframes slideInRight {

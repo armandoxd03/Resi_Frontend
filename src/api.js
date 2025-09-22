@@ -19,10 +19,20 @@ class ApiService {
       "Content-Type": "application/json",
     };
 
-    // Do NOT attach Authorization header for login or register
-    const isAuthRoute =
-      endpoint === "/auth/login" || endpoint === "/auth/register";
-    if (token && !isAuthRoute) {
+    // Only attach Authorization header for protected endpoints
+    const protectedRoutes = [
+      "/auth/logout",
+      "/users/me",
+      "/users/edit",
+      "/users/goals",
+      "/users/applications",
+      "/users/notifications",
+      "/jobs/my-jobs",
+      "/jobs/my-applications",
+      "/jobs/my-matches"
+    ];
+    const isProtected = protectedRoutes.some(route => endpoint.startsWith(route));
+    if (token && isProtected) {
       defaultHeaders["Authorization"] = `Bearer ${token}`;
     }
 
@@ -186,6 +196,26 @@ class ApiService {
   // ... (all other methods remain unchanged, just using this.request with normalized endpoints)
 
   // ================= Health Check =================
+    // ================= Jobs =================
+    async getPopularJobs() {
+      return this.request("/jobs/popular", {
+        method: "GET"
+      });
+    }
+
+    async getJobs(params = {}) {
+      // params: { limit, sortBy, order, ... }
+      const query = new URLSearchParams(params).toString();
+      return this.request(`/jobs${query ? `?${query}` : ''}`, {
+        method: "GET"
+      });
+    }
+
+    async getProfile(userId) {
+      return this.request(`/users/${userId}`, {
+        method: "GET"
+      });
+    }
   async healthCheck() {
     try {
       const response = await fetch(

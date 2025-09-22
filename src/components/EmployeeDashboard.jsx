@@ -73,9 +73,7 @@ function EmployeeDashboard() {
 
   const loadEmployeeStats = async () => {
     try {
-      const userData = JSON.parse(localStorage.getItem('userData') || '{}')
-      const response = await apiService.getProfile(userData.userId)
-      
+      const response = await apiService.getProfile('me')
       if (response.user) {
         setStats({
           applicationsCount: response.user.applicationCount || 0,
@@ -86,7 +84,7 @@ function EmployeeDashboard() {
 
         // Load ratings separately
         try {
-          const ratingsResponse = await apiService.getUserRatings(userData.userId)
+          const ratingsResponse = await apiService.getUserRatings(response.user._id)
           if (ratingsResponse.averageRating) {
             setStats(prev => ({
               ...prev,

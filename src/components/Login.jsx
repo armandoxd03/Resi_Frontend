@@ -252,18 +252,17 @@ function Login() {
           </div>
 
           <div className="form-group checkbox-group">
-            <label className="checkbox-label">
+            <label htmlFor="rememberMe" className="checkbox-label">
               <input
                 type="checkbox"
                 name="rememberMe"
                 checked={formData.rememberMe}
                 onChange={handleInputChange}
+                id="rememberMe"
               />
-              <span className="checkmark"></span>
-              Remember me
+              <span style={{marginLeft: '6px'}}>Remember me</span>
             </label>
           </div>
-
           <button 
             type="submit" 
             className="login-btn" 
@@ -336,7 +335,7 @@ function Login() {
             inset 0 1px 0 rgba(255, 255, 255, 0.2);
           padding: 3rem 2.5rem;
           width: 100%;
-          max-width: 440px;
+          max-width: 600px;
           position: relative;
           border: 1px solid rgba(255, 255, 255, 0.2);
         }
@@ -347,11 +346,13 @@ function Login() {
         }
 
         .login-logo {
-          width: 80px;
-          height: 80px;
-          border-radius: 20px;
-          margin-bottom: 1.5rem;
-          box-shadow: 0 8px 32px rgba(147, 51, 234, 0.3);
+          width: 64px;
+          height: 64px;
+          border-radius: 12px;
+          margin-bottom: 1rem;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+          object-fit: contain;
+          background: #fff;
         }
 
         .login-header h1 {
@@ -427,6 +428,7 @@ function Login() {
         input.error {
           border-color: #dc2626;
           background: rgba(255, 255, 255, 0.95);
+          text-align: left;
         }
 
         input.error:focus {
@@ -502,7 +504,14 @@ function Login() {
           font-size: 0.95rem;
           color: #64748b;
           font-weight: 500;
-          gap: 0.75rem;
+          gap: 16px;
+        }
+
+        .checkbox-label input[type="checkbox"] {
+          vertical-align: middle;
+          margin: 0;
+          position: relative;
+          top: -2px;
         }
 
         .checkbox-label input[type="checkbox"] {
@@ -784,6 +793,16 @@ function Login() {
           .login-header h1 {
             font-size: 1.5rem;
           }
+        }
+
+        /* Checkbox alignment fix */
+        .checkbox-label-flex {
+          display: flex;
+          align-items: center;
+          font-size: 0.95rem;
+          color: #64748b;
+          font-weight: 500;
+          cursor: pointer;
         }
       `}</style>
     </div>
