@@ -1,34 +1,4 @@
 class ApiService {
-  // ================= Change Password =================
-  async changePassword({ currentPassword, newPassword }) {
-    return this.request("/users/me/password", {
-      method: "PUT",
-      body: { currentPassword, newPassword },
-    });
-  }
-  // ================= Get Profile (for Settings.jsx compatibility) =================
-  async getProfile() {
-    return this.request("/users/me");
-  }
-  // ================= Job Creation =================
-  async createJob(jobData) {
-    // jobData should include: title, price, barangay, description, skillsRequired (array), location (optional)
-    return this.request("/jobs", {
-      method: "POST",
-      body: jobData,
-    });
-  }
-  // ================= Profile Update =================
-  async updateProfile(updates) {
-    return this.request("/users/me", {
-      method: "PUT",
-      body: updates,
-    });
-  }
-  // ================= Ratings =================
-  async getUserRatings(userId) {
-    return this.request(`/ratings/user/${userId}`);
-  }
   constructor() {
     this.baseURL =
       import.meta.env.VITE_API_URL ||
@@ -37,7 +7,6 @@ class ApiService {
   }
 
   normalizeEndpoint(endpoint) {
-    // Always ensure endpoint starts with /
     return endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
   }
 
@@ -49,7 +18,6 @@ class ApiService {
       "Content-Type": "application/json",
     };
 
-    // Do NOT attach Authorization header for login or register
     const isAuthRoute =
       endpoint === "/auth/login" || endpoint === "/auth/register";
     if (token && !isAuthRoute) {
@@ -66,7 +34,6 @@ class ApiService {
       ...options,
     };
 
-    // Handle FormData
     const isFormData = options.body instanceof FormData;
     if (config.body && typeof config.body === "object" && !isFormData) {
       config.body = JSON.stringify(config.body);
@@ -106,13 +73,17 @@ class ApiService {
         }
       }
 
-      // Attach status to response data for frontend logic
-      if (typeof data === 'object' && data !== null) {
+      if (typeof data === "object" && data !== null) {
         data._httpStatus = response.status;
       }
 
       if (!response.ok) {
-        if (response.status === 401) {
+        const isProfilePictureUpload =
+          endpoint === "/users/me" && config.method === "PUT" && isFormData;
+        const isProfileUpdate =
+          endpoint === "/users/me" && config.method === "PUT";
+
+        if (response.status === 401 && !isProfilePictureUpload && !isProfileUpdate) {
           localStorage.removeItem("token");
           localStorage.removeItem("user");
           window.dispatchEvent(new Event("storage"));
@@ -124,6 +95,14 @@ class ApiService {
         } else if (response.status >= 500) {
           throw new Error("Server error. Please try again later.");
         } else {
+          if (
+            response.status === 401 &&
+            (isProfilePictureUpload || isProfileUpdate)
+          ) {
+            throw new Error(
+              "Authentication required. Please try saving your changes again."
+            );
+          }
           throw new Error(
             data?.message ||
               data?.error ||
@@ -218,7 +197,80 @@ class ApiService {
     }
   }
 
-  // ... (all other methods remain unchanged, just using this.request with normalized endpoints)
+  // ================= Users =================
+  async getProfileMe() {
+    return this.request("/users/me");
+  }
+
+  async getProfile(userId) {
+    return this.request(`/users/${userId}`);
+  }
+
+  async updateProfile(updates) {
+    try {
+      return await this.request("/users/me", {
+        method: "PUT",
+        body: updates,
+      });
+    } catch (error) {
+      if (
+        error.message.includes("Session expired") ||
+        error.message.includes("Authentication required")
+      ) {
+        throw new Error("Please check your authentication and try again.");
+      }
+      throw error;
+    }
+  }
+
+  async updateProfileWithFile(formData) {
+    try {
+      return await this.request("/users/me", {
+        method: "PUT",
+        headers: {},
+        body: formData,
+      });
+    } catch (error) {
+      if (
+        error.message.includes("Session expired") ||
+        error.message.includes("Authentication required")
+      ) {
+        throw new Error("Please check your authentication and try again.");
+      }
+      throw error;
+    }
+  }
+
+  async getWorkers(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/users/workers${query ? "?" + query : ""}`);
+  }
+
+  // ================= Ratings =================
+  async getUserRatings(userId) {
+    return this.request(`/ratings/${userId}`);
+  }
+
+  async getTopRated() {
+    return this.request("/ratings/top-rated");
+  }
+
+  async getGivenRatings() {
+    return this.request("/ratings/given");
+  }
+
+  async rateUser(ratingData) {
+    return this.request("/ratings", {
+      method: "POST",
+      body: ratingData,
+    });
+  }
+
+  async reportRating(ratingId) {
+    return this.request(`/ratings/${ratingId}/report`, {
+      method: "POST",
+    });
+  }
 
   // ================= Jobs =================
   async getPopularJobs() {
@@ -230,9 +282,211 @@ class ApiService {
     return this.request(`/jobs${query ? "?" + query : ""}`);
   }
 
-  // ================= Profile =================
-  async getProfileMe() {
-    return this.request(`/users/me`);
+  async getJob(id) {
+    return this.request(`/jobs/${id}`);
+  }
+
+  async createJob(jobData) {
+    return this.request("/jobs", {
+      method: "POST",
+      body: jobData,
+    });
+  }
+
+  async applyToJob(jobId) {
+    return this.request(`/jobs/${jobId}/apply`, {
+      method: "POST",
+    });
+  }
+
+  async cancelApplication(jobId) {
+    return this.request(`/jobs/${jobId}/cancel-application`, {
+      method: "DELETE",
+    });
+  }
+
+  async getMyJobs() {
+    return this.request("/jobs/my-jobs");
+  }
+
+  async getMyApplications() {
+    return this.request("/jobs/my-applications");
+  }
+
+  async getMyApplicationsReceived() {
+    return this.request("/jobs/my-applications-received");
+  }
+
+  async searchJobs(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/jobs/search${query ? "?" + query : ""}`);
+  }
+
+  async closeJob(jobId) {
+    return this.request(`/jobs/${jobId}/close`, {
+      method: "PUT",
+    });
+  }
+
+  async deleteJob(jobId) {
+    return this.request(`/jobs/${jobId}`, {
+      method: "DELETE",
+    });
+  }
+
+  async assignWorker(jobId, userId) {
+    return this.request(`/jobs/${jobId}/assign`, {
+      method: "POST",
+      body: { userId },
+    });
+  }
+
+  async rejectApplication(jobId, userId) {
+    return this.request(`/jobs/${jobId}/reject`, {
+      method: "POST",
+      body: { userId },
+    });
+  }
+
+  async updateApplicantStatus(jobId, userId, status) {
+    return this.request(`/jobs/${jobId}/applicants/${userId}`, {
+      method: "PUT",
+      body: { status },
+    });
+  }
+
+  // ================= Goals =================
+  async createGoal(goalData) {
+    return this.request("/goals", {
+      method: "POST",
+      body: goalData,
+    });
+  }
+
+  async getMyGoals(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/goals${query ? "?" + query : ""}`);
+  }
+
+  async updateGoal(goalId, updates) {
+    return this.request(`/goals/${goalId}`, {
+      method: "PUT",
+      body: updates,
+    });
+  }
+
+  async deleteGoal(goalId) {
+    return this.request(`/goals/${goalId}`, {
+      method: "DELETE",
+    });
+  }
+
+  // ================= Notifications =================
+  async getNotifications(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/notifications${query ? "?" + query : ""}`);
+  }
+
+  async markNotificationAsRead(notificationId) {
+    return this.request(`/notifications/${notificationId}/read`, {
+      method: "PATCH",
+    });
+  }
+
+  async markAllNotificationsAsRead() {
+    return this.request("/notifications/read", {
+      method: "PATCH",
+      body: { all: true },
+    });
+  }
+
+  async deleteNotification(notificationId) {
+    return this.request(`/notifications/${notificationId}`, {
+      method: "DELETE",
+    });
+  }
+
+  // ================= Reports =================
+  async reportUser(reportData) {
+    return this.request("/reports", {
+      method: "POST",
+      body: reportData,
+    });
+  }
+
+  async getReports() {
+    return this.request("/reports");
+  }
+
+  async updateReportStatus(reportId, status) {
+    return this.request(`/reports/${reportId}`, {
+      method: "PATCH",
+      body: { status },
+    });
+  }
+
+  // ================= Dashboard =================
+  async getDashboardStats() {
+    return this.request("/dashboard/barangay");
+  }
+
+  // ================= Admin =================
+  async getAdminDashboard() {
+    return this.request("/admin/dashboard");
+  }
+
+  async searchUsers(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/admin/users${query ? "?" + query : ""}`);
+  }
+
+  async exportUsers(format = "pdf", filters = {}) {
+    const query = new URLSearchParams({
+      format,
+      filters: JSON.stringify(filters),
+    }).toString();
+    return this.request(`/admin/export/users${query ? "?" + query : ""}`);
+  }
+
+  async exportJobs(format = "pdf", filters = {}) {
+    const query = new URLSearchParams({
+      format,
+      filters: JSON.stringify(filters),
+    }).toString();
+    return this.request(`/admin/export/jobs${query ? "?" + query : ""}`);
+  }
+
+  async exportRatings(format = "pdf", filters = {}) {
+    const query = new URLSearchParams({
+      format,
+      filters: JSON.stringify(filters),
+    }).toString();
+    return this.request(`/admin/export/ratings${query ? "?" + query : ""}`);
+  }
+
+  // ================= Activity =================
+  async getUserActivity(userId, params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(
+      `/activity/users/${userId}${query ? "?" + query : ""}`
+    );
+  }
+
+  async getRecentActivity(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/activity/recent${query ? "?" + query : ""}`);
+  }
+
+  async getMyActivity() {
+    return this.request("/activity/me");
+  }
+
+  // ================= Change Password =================
+  async changePassword({ currentPassword, newPassword }) {
+    return this.request("/users/me/password", {
+      method: "PUT",
+      body: { currentPassword, newPassword },
+    });
   }
 
   // ================= Health Check =================
@@ -246,6 +500,21 @@ class ApiService {
     } catch {
       throw new Error("Backend health check failed");
     }
+  }
+
+  // ================= Analytics =================
+  async getAnalyticsDashboard() {
+    return this.request("/analytics/dashboard");
+  }
+
+  async getUserGrowth(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/analytics/user-growth${query ? "?" + query : ""}`);
+  }
+
+  async getJobStatistics(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/analytics/job-stats${query ? "?" + query : ""}`);
   }
 }
 

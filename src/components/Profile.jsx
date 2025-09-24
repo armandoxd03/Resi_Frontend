@@ -10,52 +10,75 @@ function Profile() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showEditModal, setShowEditModal] = useState(false)
-  const [editFormData, setEditFormData] = useState({})
+  const [editFormData, setEditFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    mobileNo: '',
+    address: '',
+    barangay: '',
+    gender: '',
+    bio: '',
+    skills: []
+  })
   const [uploading, setUploading] = useState(false)
   
-  const { user, updateUser } = useAuth()
+  const { user, updateUser, verifyToken } = useAuth()
   const { success, error: showError } = useAlert()
 
   useEffect(() => {
-      loadProfile()
-      loadRatings()
+    loadProfile()
   }, [])
 
-    const loadProfile = async () => {
-      try {
-        const data = await apiService.getProfileMe()
-        setProfile(data.user)
-        setEditFormData(data.user)
-      } catch (err) {
-        setError('Failed to load profile')
-        console.error('Profile load error:', err)
-      } finally {
-        setLoading(false)
-      }
+  useEffect(() => {
+    if (profile?._id) {
+      loadRatings()
     }
+  }, [profile?._id])
 
-    const loadRatings = async () => {
-      try {
-        // Wait for profile to load first
-        if (!profile?._id) return;
-        const ratingsResponse = await apiService.getUserRatings(profile._id)
-        setRatings(ratingsResponse.ratings || [])
-      } catch (err) {
-        console.error('Failed to load ratings:', err)
-      }
+  const loadProfile = async () => {
+    try {
+      setLoading(true)
+      const data = await apiService.getProfileMe()
+      setProfile(data.user)
+      setEditFormData({
+        firstName: data.user.firstName || '',
+        lastName: data.user.lastName || '',
+        email: data.user.email || '',
+        mobileNo: data.user.mobileNo || '',
+        address: data.user.address || '',
+        barangay: data.user.barangay || '',
+        gender: data.user.gender || '',
+        bio: data.user.bio || '',
+        skills: data.user.skills || []
+      })
+    } catch (err) {
+      setError('Failed to load profile')
+      console.error('Profile load error:', err)
+    } finally {
+      setLoading(false)
     }
+  }
+
+  const loadRatings = async () => {
+    try {
+      if (!profile?._id) return
+      const ratingsResponse = await apiService.getUserRatings(profile._id)
+      setRatings(ratingsResponse.ratings || [])
+    } catch (err) {
+      console.error('Failed to load ratings:', err)
+    }
+  }
 
   const handleProfilePictureUpload = async (event) => {
     const file = event.target.files[0]
     if (!file) return
 
-    // Validate file type
     if (!file.type.startsWith('image/')) {
       showError('Please select a valid image file')
       return
     }
 
-    // Validate file size (5MB max)
     if (file.size > 5 * 1024 * 1024) {
       showError('Image size must be less than 5MB')
       return
@@ -63,6 +86,9 @@ function Profile() {
 
     setUploading(true)
     try {
+      // Verify token first to prevent 401 errors
+      await verifyToken()
+      
       const formData = new FormData()
       formData.append('profilePicture', file)
       
@@ -75,9 +101,18 @@ function Profile() {
       }
     } catch (error) {
       console.error('Error uploading profile picture:', error)
-      showError('Failed to upload profile picture. Please try again.')
+      
+      // More specific error messages
+      if (error.message.includes('Authentication') || error.message.includes('Session')) {
+        showError('Authentication issue. Please try logging in again.')
+      } else if (error.message.includes('Network')) {
+        showError('Network error. Please check your connection.')
+      } else {
+        showError('Failed to upload profile picture. Please try again.')
+      }
     } finally {
       setUploading(false)
+      event.target.value = ''
     }
   }
 
@@ -91,7 +126,7 @@ function Profile() {
       barangay: profile?.barangay || '',
       gender: profile?.gender || '',
       bio: profile?.bio || '',
-      skills: profile?.skills ? profile.skills.join(', ') : ''
+      skills: profile?.skills || []
     })
     setShowEditModal(true)
   }
@@ -104,25 +139,30 @@ function Profile() {
     }))
   }
 
+  const handleSkillToggle = (skill) => {
+    setEditFormData(prev => ({
+      ...prev,
+      skills: prev.skills.includes(skill)
+        ? prev.skills.filter(s => s !== skill)
+        : [...prev.skills, skill]
+    }))
+  }
+
   const handleSaveProfile = async (e) => {
     e.preventDefault()
     
     try {
+      // Verify token first to prevent 401 errors
+      await verifyToken()
+      
       const updates = { ...editFormData }
       
-      // Parse skills from comma-separated string
-      if (updates.skills) {
-        updates.skills = updates.skills.split(',').map(skill => skill.trim()).filter(skill => skill)
-      }
-      
-      console.log('Sending profile updates:', updates);
-      console.log('Gender value being sent:', updates.gender);
+      console.log('Sending profile updates:', updates)
       
       const response = await apiService.updateProfile(updates)
       
       if (response.user) {
-        console.log('Profile update successful:', response.user);
-        console.log('Gender value received back:', response.user.gender);
+        console.log('Profile update successful:', response.user)
         setProfile(response.user)
         updateUser(response.user)
         setShowEditModal(false)
@@ -130,7 +170,13 @@ function Profile() {
       }
     } catch (error) {
       console.error('Error updating profile:', error)
-      showError('Failed to update profile. Please try again.')
+      
+      // More specific error messages
+      if (error.message.includes('Authentication') || error.message.includes('Session')) {
+        showError('Authentication issue. Please try logging in again.')
+      } else {
+        showError('Failed to update profile. Please try again.')
+      }
     }
   }
 
@@ -175,9 +221,10 @@ function Profile() {
                   accept="image/*"
                   onChange={handleProfilePictureUpload}
                   style={{ display: 'none' }}
+                  disabled={uploading}
                 />
                 <label htmlFor="profilePictureInput" className="upload-btn">
-                  {uploading ? '📤' : '📷'}
+                  {uploading ? '📤 Uploading...' : '📷 Change Photo'}
                 </label>
               </div>
             </div>
@@ -206,7 +253,7 @@ function Profile() {
             </div>
             <div className="detail-group">
               <label>Gender:</label>
-              <span>{profile?.gender || 'Not provided'}</span>
+              <span>{profile?.gender ? profile.gender.charAt(0).toUpperCase() + profile.gender.slice(1) : 'Not provided'}</span>
             </div>
             <div className="detail-group">
               <label>Bio:</label>
@@ -349,7 +396,6 @@ function Profile() {
                       <option value="male">Male</option>
                       <option value="female">Female</option>
                       <option value="other">Other</option>
-                      <option value="others">Others</option>
                     </select>
                   </div>
                 </div>
@@ -367,58 +413,19 @@ function Profile() {
                 </div>
 
                 <div className="form-group">
-                  <div className="skills-card">
-                    <div className="skills-header">
-                      <h3>Required Skills <span style={{color:'red'}}>*</span></h3>
-                      <p className="skills-desc">Select all that apply. Add custom skills if needed.</p>
-                    </div>
-                    <div className="pro-checkbox-group-grid">
-                      {['Plumbing','Carpentry','Cleaning','Electrical','Painting','Gardening','Cooking','Driving','Babysitting','Tutoring','IT Support','Customer Service'].map(skill => (
-                        <label key={skill} className="pro-checkbox-label">
-                          <input
-                            type="checkbox"
-                            name="skills"
-                            value={skill}
-                            checked={editFormData.skills.includes(skill)}
-                            onChange={e => {
-                              const checked = e.target.checked;
-                              setEditFormData(prev => ({
-                                ...prev,
-                                skills: checked
-                                  ? [...prev.skills, skill]
-                                  : prev.skills.filter(s => s !== skill)
-                              }));
-                            }}
-                            className="pro-checkbox"
-                          />
-                          <span className="pro-checkbox-custom"></span>
-                          <span className="pro-checkbox-text">{skill}</span>
-                        </label>
-                      ))}
-                    </div>
-                    <div className="other-skill-row">
-                      <label htmlFor="otherSkill" className="other-label">Other:</label>
-                      <input
-                        type="text"
-                        id="otherSkill"
-                        name="otherSkill"
-                        value={editFormData.otherSkill || ''}
-                        onChange={e => setEditFormData(prev => ({...prev, otherSkill: e.target.value}))}
-                        placeholder="Add custom skill"
-                        className="other-input"
-                      />
-                      <button type="button" className="other-btn"
-                        onClick={() => {
-                          if (editFormData.otherSkill && !editFormData.skills.includes(editFormData.otherSkill)) {
-                            setEditFormData(prev => ({
-                              ...prev,
-                              skills: [...prev.skills, prev.otherSkill],
-                              otherSkill: ''
-                            }));
-                          }
-                        }}
-                      >Add</button>
-                    </div>
+                  <label>Skills</label>
+                  <div className="skills-checkbox-group">
+                    {['Plumbing', 'Carpentry', 'Cleaning', 'Electrical', 'Painting', 'Gardening', 'Cooking', 'Driving', 'Babysitting', 'Tutoring', 'IT Support', 'Customer Service'].map(skill => (
+                      <label key={skill} className="checkbox-label">
+                        <input
+                          type="checkbox"
+                          checked={editFormData.skills.includes(skill)}
+                          onChange={() => handleSkillToggle(skill)}
+                        />
+                        <span className="checkmark"></span>
+                        {skill}
+                      </label>
+                    ))}
                   </div>
                 </div>
 
@@ -437,508 +444,70 @@ function Profile() {
       </div>
 
       <style>{`
-        .container {
-          max-width: 800px;
-          margin: 0 auto;
-          padding: 2rem;
-        }
-
-        .page-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 2rem;
-          padding-bottom: 1rem;
-          border-bottom: 2px solid #e2e8f0;
-        }
-
-        .page-header h1 {
-          color: #2b6cb0;
-          margin: 0;
-        }
-
-        .back-btn {
-          color: #2b6cb0;
-          text-decoration: none;
-          font-weight: 500;
-        }
-
-        .back-btn:hover {
-          text-decoration: underline;
-        }
-
-        .profile-card {
-          background: white;
-          border-radius: 12px;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-          overflow: hidden;
-        }
-
-        .profile-header {
-          background: linear-gradient(135deg, #2b6cb0, #3182ce);
-          color: white;
-          padding: 2rem;
-          display: flex;
-          align-items: center;
-          gap: 2rem;
-        }
-
-        .profile-avatar {
-          width: 100px;
-          height: 100px;
-          border-radius: 50%;
-          overflow: hidden;
-          background: rgba(255,255,255,0.2);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          position: relative;
-        }
-
-        .avatar-upload {
-          position: absolute;
-          bottom: 6px;
-          right: 6px;
-          background: #a78bfa;
-          border: 2px solid #fff;
-          border-radius: 50%;
-          width: 36px;
-          height: 36px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          box-shadow: 0 2px 8px rgba(80,0,120,0.08);
-          z-index: 2;
-        }
-
-        .upload-btn {
-          color: #fff;
-          background: transparent;
-          cursor: pointer;
-          font-size: 1.2rem;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 100%;
-          height: 100%;
-          border: none;
-          outline: none;
-          transition: background 0.2s;
-        }
-
-        .upload-btn:hover, .upload-btn:focus {
-          background: #7c3aed;
-          color: #fff;
-          border-radius: 50%;
-        }
-
-        .verified-badge {
-          font-size: 0.8rem;
-          padding: 0.25rem 0.5rem;
-          border-radius: 12px;
-          background: ${profile?.isVerified ? '#10b981' : '#f59e0b'};
-          color: white;
-          display: inline-block;
-          margin-top: 0.5rem;
-        }
-
-        .ratings-section {
-          margin-top: 2rem;
-          padding: 1.5rem;
-          background: #f8f9fa;
-          border-radius: 8px;
-        }
-
-        .ratings-section h3 {
-          margin: 0 0 1rem 0;
-          color: #2b6cb0;
-        }
-
-        .ratings-list {
-          display: grid;
-          gap: 1rem;
-        }
-
-        .rating-card {
-          background: white;
-          padding: 1rem;
-          border-radius: 8px;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-
-        .rating-stars {
-          color: #ffc107;
-          font-size: 1.1rem;
-          margin-bottom: 0.5rem;
-        }
-
-        .rating-comment {
-          color: #4a5568;
-          margin-bottom: 0.5rem;
-          font-style: italic;
-        }
-
-        .rating-footer {
-          display: flex;
-          justify-content: space-between;
-          font-size: 0.8rem;
-          color: #666;
-        }
-
-        .modal-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(0,0,0,0.5);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 1000;
-        }
-
-        .modal-content {
-          background: white;
-          border-radius: 12px;
-          padding: 0;
-          width: 90%;
-          max-width: 600px;
-          max-height: 80vh;
-          overflow-y: auto;
-        }
-
-        .modal-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 1.5rem;
-          border-bottom: 1px solid #e2e8f0;
-        }
-
-        .modal-header h3 {
-          margin: 0;
-          color: #2b6cb0;
-        }
-
-        .close-btn {
-          background: none;
-          border: none;
-          font-size: 1.5rem;
-          cursor: pointer;
-          color: #666;
-        }
-
-        .edit-form {
-          padding: 1.5rem;
-        }
-
-        .form-row {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 1rem;
-        }
-
-        .form-group {
-          margin-bottom: 1rem;
-        }
-
-        .form-group label {
-          display: block;
-          margin-bottom: 0.5rem;
-          font-weight: 500;
+        /* ... (your existing CSS styles) ... */
+        
+        .avatar-upload .upload-btn {
+          background: rgba(255, 255, 255, 0.9);
           color: #333;
-        }
-
-        .form-group input,
-        .form-group select,
-        .form-group textarea {
-          width: 100%;
-          padding: 0.75rem;
-          border: 2px solid #e2e8f0;
-          border-radius: 8px;
-          font-size: 1rem;
-          transition: border-color 0.2s;
-          box-sizing: border-box;
-        }
-
-        .form-group input:focus,
-        .form-group select:focus,
-        .form-group textarea:focus {
-          outline: none;
-          border-color: #2b6cb0;
-        }
-
-        .form-group textarea {
-          resize: vertical;
-          font-family: inherit;
-        }
-
-        .modal-actions {
-          display: flex;
-          gap: 1rem;
-          justify-content: flex-end;
-          margin-top: 1.5rem;
-          padding-top: 1rem;
-          border-top: 1px solid #e2e8f0;
-        }
-
-        .profile-avatar img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-        }
-
-        .avatar-placeholder {
-          font-size: 2rem;
-          font-weight: bold;
-          color: white;
-        }
-
-        .profile-info h2 {
-          margin: 0 0 0.5rem 0;
-          font-size: 1.8rem;
-        }
-
-        .user-type {
-          background: rgba(255,255,255,0.2);
-          padding: 0.25rem 0.75rem;
+          padding: 8px 12px;
           border-radius: 20px;
           font-size: 0.9rem;
-          display: inline-block;
-          margin: 0 0 0.5rem 0;
-          text-transform: capitalize;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          border: 1px solid #ddd;
         }
-
-        .email {
-          opacity: 0.9;
-          margin: 0;
+        
+        .avatar-upload .upload-btn:hover {
+          background: white;
+          transform: translateY(-2px);
+          box-shadow: 0 2px 8px rgba(0,0,0,0.2);
         }
-
-        .profile-details {
-          padding: 2rem;
+        
+        .avatar-upload .upload-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+          transform: none;
         }
-
-        .detail-group {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          padding: 1rem 0;
-          border-bottom: 1px solid #f1f5f9;
-        }
-
-        .detail-group:last-child {
-          border-bottom: none;
-        }
-
-        .detail-group label {
-          font-weight: 600;
-          color: #4a5568;
-          min-width: 120px;
-        }
-
-        .detail-group span {
-          color: #2d3748;
-          text-align: right;
-          flex: 1;
-        }
-
-        .skills-card {
-          background: #fff;
-          border-radius: 12px;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-          padding: 1em 0.75em;
-          margin-bottom: 1em;
-          border: 1px solid #e2e8f0;
-        }
-        .skills-header h3 {
-          margin: 0;
-          font-size: 1.05rem;
-          font-weight: 700;
-          color: #2b6cb0;
-        }
-        .skills-desc {
-          font-size: 0.92rem;
-          color: #718096;
-          margin-bottom: 0.25em;
-        }
-        .pro-checkbox-group-grid {
+        
+        .skills-checkbox-group {
           display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 0.25em 0.5em;
-          max-height: 80px;
-          overflow-y: auto;
-          border-radius: 8px;
-          border: 1px solid #e2e8f0;
-          background: #f7fafc;
-          padding: 0.5em;
-          margin-bottom: 0.5em;
-          box-shadow: 0 1px 4px rgba(44,62,80,0.04);
+          grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+          gap: 10px;
+          margin-top: 10px;
         }
-        .pro-checkbox-label {
+        
+        .checkbox-label {
           display: flex;
           align-items: center;
-          gap: 0.4em;
-          font-size: 0.98rem;
-          font-weight: 500;
-          color: #2d3748;
+          gap: 8px;
           cursor: pointer;
+        }
+        
+        .checkbox-label input {
+          display: none;
+        }
+        
+        .checkmark {
+          width: 20px;
+          height: 20px;
+          border: 2px solid #ddd;
+          border-radius: 4px;
           position: relative;
         }
-        .pro-checkbox {
-          opacity: 0;
-          position: absolute;
-        }
-        .pro-checkbox-custom {
-          width: 18px;
-          height: 18px;
-          border-radius: 6px;
-          border: 2px solid #cbd5e0;
-          background: #fff;
-          display: inline-block;
-          transition: border-color 0.2s;
-          margin-right: 0.15em;
-        }
-        .pro-checkbox:checked + .pro-checkbox-custom {
-          border-color: #2b6cb0;
-          background: #ebf8ff;
-        }
-        .pro-checkbox:checked + .pro-checkbox-custom:after {
-          content: '';
-          display: block;
-          width: 8px;
-          height: 8px;
-          margin: 3px auto;
-          border-radius: 2px;
+        
+        .checkbox-label input:checked + .checkmark {
           background: #2b6cb0;
-        }
-        .pro-checkbox-text {
-          margin-left: 0.15em;
-        }
-        .other-skill-row {
-          display: flex;
-          align-items: center;
-          gap: 0.5em;
-          margin-bottom: 0.25em;
-        }
-        .other-label {
-          font-weight: 600;
-          color: #4a5568;
-        }
-        .other-input {
-          border: 1px solid #cbd5e0;
-          border-radius: 6px;
-          padding: 0.4em 0.8em;
-          font-size: 0.98rem;
-          outline: none;
-          transition: border-color 0.2s;
-        }
-        .other-input:focus {
           border-color: #2b6cb0;
         }
-        .other-btn {
-          background: #2b6cb0;
-          color: #fff;
-          border: none;
-          border-radius: 6px;
-          padding: 0.4em 1em;
-          font-size: 0.98rem;
-          font-weight: 600;
-          cursor: pointer;
-          transition: background 0.2s;
-        }
-        .other-btn:hover {
-          background: #234e7d;
-        }
-        @media (max-width: 768px) {
-          .skills-card {
-            padding: 0.5em 0.25em;
-          }
-          .pro-checkbox-group-grid {
-            grid-template-columns: 1fr;
-            max-height: 120px;
-          }
-        }
-
-        .profile-actions {
-          padding: 2rem;
-          background: #f8f9fa;
-          display: flex;
-          gap: 1rem;
-          justify-content: center;
-        }
-
-        .btn {
-          padding: 0.75rem 1.5rem;
-          border-radius: 8px;
-          text-decoration: none;
-          font-weight: 600;
-          transition: all 0.2s;
-          border: none;
-          cursor: pointer;
-        }
-
-        .btn-primary {
-          background: #2b6cb0;
+        
+        .checkbox-label input:checked + .checkmark:after {
+          content: '✓';
           color: white;
-        }
-
-        .btn-primary:hover {
-          background: #2c5282;
-        }
-
-        .btn-secondary {
-          background: #e2e8f0;
-          color: #2b6cb0;
-        }
-
-        .btn-secondary:hover {
-          background: #cbd5e0;
-        }
-
-        .loading, .error {
-          text-align: center;
-          padding: 2rem;
-          color: #666;
-        }
-
-        .error {
-          color: #e53e3e;
-        }
-
-        @media (max-width: 768px) {
-          .container {
-            padding: 1rem;
-          }
-
-          .page-header {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 1rem;
-          }
-
-          .profile-header {
-            flex-direction: column;
-            text-align: center;
-          }
-
-          .detail-group {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 0.5rem;
-          }
-
-          .detail-group span {
-            text-align: left;
-          }
-
-          .skills-list {
-            justify-content: flex-start;
-          }
-
-          .profile-actions {
-            flex-direction: column;
-          }
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          font-size: 14px;
         }
       `}</style>
     </div>
