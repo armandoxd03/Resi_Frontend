@@ -80,6 +80,7 @@ function EmployeeDashboard() {
         navigate('/login');
         return;
       }
+<<<<<<< HEAD
   const response = await apiService.getProfileMe();
       if (response.user) {
         setStats({
@@ -101,6 +102,15 @@ function EmployeeDashboard() {
           console.error('Error loading ratings:', ratingError);
         }
       }
+=======
+        const statsResponse = await apiService.getEmployeeDashboardStats(userId);
+        setStats({
+          applicationsCount: statsResponse.applications || 0,
+          offersCount: statsResponse.jobOffers || 0,
+          viewsCount: statsResponse.profileViews || 0,
+          rating: statsResponse.averageRating || 0
+        });
+>>>>>>> 865b600 (adi help center/employee dsbboard stats)
     } catch (error) {
       console.error('Error loading employee stats:', error);
       showError('Failed to load dashboard statistics');

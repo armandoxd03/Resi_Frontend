@@ -202,6 +202,14 @@ class ApiService {
     return this.request("/users/me");
   }
 
+<<<<<<< HEAD
+=======
+    // Employee dashboard stats
+    async getEmployeeDashboardStats(userId) {
+      return this.request(`/api/dashboard/employee/${userId}/stats`);
+    }
+
+>>>>>>> 865b600 (adi help center/employee dsbboard stats)
   async getProfile(userId) {
     return this.request(`/users/${userId}`);
   }
