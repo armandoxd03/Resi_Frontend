@@ -70,7 +70,7 @@ export function AlertProvider({ children }) {
 
 function AlertContainer({ alerts, removeAlert }) {
   return (
-    <div className="alert-container">
+  <div className="alert-container">
       {alerts.map(alert => (
         <Alert
           key={alert.id}
@@ -78,7 +78,6 @@ function AlertContainer({ alerts, removeAlert }) {
           onClose={() => removeAlert(alert.id)}
         />
       ))}
-      
       <style>{`
         .alert-container {
           position: fixed;
@@ -87,6 +86,9 @@ function AlertContainer({ alerts, removeAlert }) {
           z-index: 10000;
           font-family: Arial, sans-serif;
           pointer-events: none;
+          display: flex;
+          flex-direction: column;
+          align-items: flex-end;
         }
       `}</style>
     </div>
@@ -145,7 +147,7 @@ function Alert({ alert, onClose }) {
   }
 
   return (
-    <div className="alert-box">
+  <div className="alert-box fade-in-out">
       <div className="alert-content">
         <span className="alert-icon">{getIcon(alert.type)}</span>
         <div className="alert-text">
@@ -169,17 +171,30 @@ function Alert({ alert, onClose }) {
           word-wrap: break-word;
           pointer-events: all;
           position: relative;
-          animation: slideInRight 0.3s ease forwards;
+          font-size: 1em;
+          opacity: 1;
+          animation: fadeInOut 4s ease-in-out forwards;
+        }
+
+        .fade-in-out {
+          animation: fadeInOut 4s ease-in-out forwards;
+        }
+
+        @keyframes fadeInOut {
+          0% { opacity: 0; transform: scale(0.95); }
+          10% { opacity: 1; transform: scale(1); }
+          90% { opacity: 1; transform: scale(1); }
+          100% { opacity: 0; transform: scale(0.95); }
         }
 
         .alert-content {
           display: flex;
           align-items: flex-start;
-          gap: 12px;
+          gap: 14px;
         }
 
         .alert-icon {
-          font-size: 18px;
+          font-size: 22px;
           flex-shrink: 0;
           margin-top: 2px;
         }
@@ -189,13 +204,14 @@ function Alert({ alert, onClose }) {
         }
 
         .alert-title {
-          font-weight: 600;
+          font-weight: 700;
           margin-bottom: 4px;
+          font-size: 1.08em;
         }
 
         .alert-message {
-          font-size: 14px;
-          line-height: 1.4;
+          font-size: 15px;
+          line-height: 1.5;
         }
 
         .alert-close {
@@ -203,9 +219,9 @@ function Alert({ alert, onClose }) {
           border: none;
           color: inherit;
           cursor: pointer;
-          font-size: 18px;
+          font-size: 22px;
           padding: 0;
-          margin-left: 8px;
+          margin-left: 10px;
           opacity: 0.7;
           width: 40px;
           height: 40px;
@@ -221,17 +237,6 @@ function Alert({ alert, onClose }) {
         .alert-close:hover {
           opacity: 1;
           background: rgba(0,0,0,0.08);
-        }
-
-        @keyframes slideInRight {
-          from {
-            transform: translateX(100%);
-            opacity: 0;
-          }
-          to {
-            transform: translateX(0);
-            opacity: 1;
-          }
         }
       `}</style>
     </div>

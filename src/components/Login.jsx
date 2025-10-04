@@ -108,7 +108,7 @@ function Login() {
         email: formData.email,
         password: formData.password
       })
-      
+
       if (data.success) {
         // Handle remember me
         if (formData.rememberMe) {
@@ -119,22 +119,42 @@ function Login() {
           localStorage.removeItem('savedEmail')
         }
 
-        // Login user
-        login(data.token, {
-          userId: data.userId,
-          userType: data.userType,
-          isVerified: data.isVerified,
-          firstName: data.firstName,
-          lastName: data.lastName,
-          email: formData.email
-        })
+        // Fetch full user profile after login
+        let fullUser = null;
+        try {
+          const profileRes = await apiService.getProfile(data.userId);
+          if (profileRes && profileRes.user) {
+            fullUser = {
+              userId: profileRes.user._id,
+              userType: profileRes.user.userType,
+              isVerified: profileRes.user.isVerified,
+              firstName: profileRes.user.firstName,
+              lastName: profileRes.user.lastName,
+              email: profileRes.user.email,
+              // add any other fields you want to keep in userData
+            };
+          }
+        } catch (profileErr) {
+          // fallback to login response if profile fetch fails
+          fullUser = {
+            userId: data.userId,
+            userType: data.userType,
+            isVerified: data.isVerified,
+            firstName: data.firstName,
+            lastName: data.lastName,
+            email: formData.email
+          };
+        }
+
+        // Login user with full user data
+        login(data.token, fullUser);
 
         // Show success message
         success('Login successful! Redirecting...', 2000)
 
         // Redirect based on user type
         setTimeout(() => {
-          if (data.userType === 'admin') {
+          if (fullUser.userType === 'admin') {
             navigate('/admin-dashboard')
           } else {
             navigate('/landing')

@@ -145,14 +145,31 @@ function SearchJobs() {
           <div className="form-row">
             <div className="form-group">
               <label htmlFor="skill">Skill</label>
-              <input
-                type="text"
+              <select
                 id="skill"
                 name="skill"
                 value={searchQuery.skill}
                 onChange={handleInputChange}
-                placeholder="e.g., cleaning, plumbing"
-              />
+                style={{ minHeight: '48px', fontSize: '1rem' }}
+              >
+                <option value="">Select a skill</option>
+                {['Plumbing','Carpentry','Cleaning','Electrical','Painting','Gardening','Cooking','Driving','Babysitting','Tutoring','IT Support','Customer Service'].map(skill => (
+                  <option key={skill} value={skill}>{skill}</option>
+                ))}
+                <option value="Other">Other</option>
+              </select>
+              {searchQuery.skill === 'Other' && (
+                <input
+                  type="text"
+                  id="otherSkill"
+                  name="otherSkill"
+                  value={searchQuery.otherSkill || ''}
+                  onChange={handleInputChange}
+                  placeholder="Add custom skill"
+                  style={{ marginTop: '0.5em' }}
+                  required
+                />
+              )}
             </div>
 
             <div className="form-group">

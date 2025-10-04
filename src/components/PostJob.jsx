@@ -102,46 +102,42 @@ function PostJob() {
       setFormError('Please add at least one required skill')
       return
     }
-
-    setLoading(true)
-
-    const jobData = {
-      ...formData,
-      price: parseFloat(formData.price),
-      skillsRequired: skills
+    if (!formData.postTiming || (formData.postTiming === 'schedule' && !formData.scheduledTime)) {
+      setFormError('Please select a post timing and date/time if scheduling')
+      return
     }
-    
+
+    setLoading(true);
     try {
-      const result = await apiService.createJob(jobData)
-      
-      if (result.success) {
-        success(`Job "${result.job.title}" posted successfully!`)
-        // Clear form and skills
+  const result = await apiService.createJob(formData);
+      // Use _httpStatus from API response for reliable alert logic
+      if (result._httpStatus === 201) {
+        success(result.alert || result.message || "Job posted successfully!");
         setFormData({
           title: '',
           description: '',
           price: '',
           barangay: '',
-          postMethod: 'public'
-        })
-        setSkills([])
-        localStorage.removeItem('draftJob')
-        
-        // Redirect to jobs page
+          postMethod: 'public',
+          postTiming: 'now',
+          scheduledTime: ''
+        });
+        setSkills([]);
+        localStorage.removeItem('draftJob');
         setTimeout(() => {
-          navigate('/search-jobs')
-        }, 1500)
+          navigate('/search-jobs');
+        }, 1500);
       } else {
-        setFormError(result.message || 'Error posting job')
-        showError(result.message || 'Error posting job')
+        setFormError(result.alert || result.message || 'Error posting job');
+        showError(result.alert || result.message || 'Error posting job');
       }
-    } catch (error) {
-      console.error('Error posting job:', error)
-      const errorMessage = error.message || 'Failed to post job. Please try again.'
-      setFormError(errorMessage)
-      showError(errorMessage)
+    } catch (err) {
+      console.error('Error posting job:', err);
+      const errorMessage = err?.message || 'Failed to post job. Please try again.';
+      setFormError(errorMessage);
+      showError(errorMessage);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
@@ -217,61 +213,112 @@ function PostJob() {
           </div>
 
           <div className="form-group">
-            <label htmlFor="skillInput">Required Skills *</label>
-            <input
-              type="text"
-              id="skillInput"
-              value={skillInput}
-              onChange={(e) => setSkillInput(e.target.value)}
-              onKeyDown={handleSkillInputKeyDown}
-              placeholder="Type a skill and press Enter"
-            />
-            {skillError && (
-              <div className="field-error">{skillError}</div>
-            )}
-            
-            <div className="skill-tags">
-              {skills.map((skill, index) => (
-                <span key={index} className="skill-tag">
-                  {skill}
-                  <span 
-                    className="remove-skill" 
-                    onClick={() => removeSkill(skill)}
-                    title="Remove skill"
-                  >
-                    &times;
-                  </span>
-                </span>
+            <label>Required Skills <span style={{color:'red'}}>*</span></label>
+            <div className="skills-table">
+              {['Plumbing','Carpentry','Cleaning','Electrical','Painting','Gardening','Cooking','Driving','Babysitting','Tutoring','IT Support','Customer Service'].map(skill => (
+                <div key={skill} className="skills-table-row">
+                  <span className="skills-table-name">{skill}</span>
+                  <input
+                    type="checkbox"
+                    name="skillsRequired"
+                    value={skill}
+                    checked={skills.includes(skill)}
+                    onChange={e => {
+                      const checked = e.target.checked;
+                      setSkills(checked
+                        ? [...skills, skill]
+                        : skills.filter(s => s !== skill)
+                      );
+                    }}
+                    className="skills-table-checkbox"
+                  />
+                </div>
               ))}
             </div>
+            <div className="form-group">
+              <label htmlFor="otherSkill">Other:</label>
+              <input
+                type="text"
+                id="otherSkill"
+                name="otherSkill"
+                value={formData.otherSkill || ''}
+                onChange={e => setFormData(prev => ({...prev, otherSkill: e.target.value}))}
+                placeholder="Add custom skill"
+              />
+              <div className="custom-skill-actions">
+                <button type="button" className="btn btn-secondary add-btn"
+                  onClick={() => {
+                    if (formData.otherSkill && !skills.includes(formData.otherSkill)) {
+                      setSkills([...skills, formData.otherSkill]);
+                      setFormData(prev => ({...prev, otherSkill: ''}));
+                    }
+                  }}
+                >Add</button>
+                <button type="button" className="btn btn-secondary clear-btn"
+                  onClick={() => {
+                    setFormData(prev => ({...prev, otherSkill: ''}));
+                    setSkills([]);
+                  }}
+                >Clear</button>
+              </div>
+            </div>
+            <small>Select all that apply. Add custom skills if needed.</small>
+            {skills.length === 0 && (
+              <div className="field-error">Please select at least one required skill</div>
+            )}
+            {skills.length > 0 && (
+                <div className="skill-tags">
+                  {skills.map((skill, index) => (
+                    <span key={index} className="skill-tag">
+                      {skill}
+                    </span>
+                  ))}
+                </div>
+            )}
           </div>
 
           <div className="form-group">
-            <label>Post Method *</label>
+            <label>Post Timing *</label>
             <div className="radio-group">
               <label className="radio-label">
                 <input
                   type="radio"
-                  name="postMethod"
-                  value="public"
-                  checked={formData.postMethod === 'public'}
-                  onChange={handleInputChange}
+                  name="postTiming"
+                  value="now"
+                  checked={formData.postTiming === 'now'}
+                  onChange={() => setFormData(prev => ({...prev, postTiming: 'now'}))}
                   style={{ marginRight: "5px" }}
+                  required
                 />
-                <span className="radio-text">Public (visible to everyone)</span>
+                <span className="radio-text">Post Now</span>
               </label>
               <label className="radio-label">
                 <input
                   type="radio"
-                  name="postMethod"
-                  value="private"
-                  checked={formData.postMethod === 'private'}
-                  onChange={handleInputChange}
+                  name="postTiming"
+                  value="schedule"
+                  checked={formData.postTiming === 'schedule'}
+                  onChange={() => setFormData(prev => ({...prev, postTiming: 'schedule'}))}
                   style={{ marginRight: "5px" }}
+                  required
                 />
-                <span className="radio-text">Private (invitation only)</span>
+                <span className="radio-text">Schedule Post</span>
               </label>
             </div>
+            {formData.postTiming === 'schedule' && (
+              <div style={{marginTop: '0.7em'}}>
+                <label htmlFor="scheduledTime">Select Date & Time:</label>
+                <input
+                  type="datetime-local"
+                  id="scheduledTime"
+                  name="scheduledTime"
+                  value={formData.scheduledTime || ''}
+                  onChange={e => setFormData(prev => ({...prev, scheduledTime: e.target.value}))}
+                  style={{marginLeft: '0.5em'}}
+                  required
+                />
+              </div>
+            )}
           </div>
 
           <div className="form-actions">
@@ -402,6 +449,106 @@ function PostJob() {
           gap: 0.5rem;
         }
 
+          .skills-table {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            max-height: 140px;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background: #f9f9f9;
+            padding: 0.5em 0.5em;
+          }
+          .skills-table-row {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            align-items: center;
+            padding: 0.3em 0.5em;
+            border-bottom: 1px solid #f0f0f0;
+          }
+          .skills-table-row:last-child {
+            border-bottom: none;
+          }
+          .skills-table-name {
+            font-size: 1em;
+            color: #2d3748;
+          }
+          .skills-table-checkbox {
+            justify-self: end;
+            accent-color: #2b6cb0;
+            width: 18px;
+            height: 18px;
+          }
+          @media (max-width: 600px) {
+            .skills-table-row {
+              grid-template-columns: 1fr auto;
+              padding: 0.3em 0.3em;
+            }
+            .skills-table-name {
+              font-size: 0.98em;
+            }
+            .skills-table-checkbox {
+              width: 16px;
+              height: 16px;
+            }
+          }
+
+            .pro-checkbox-label {
+              display: flex;
+              align-items: center;
+              gap: 0.4em;
+              padding: 0.15em 0.3em;
+            }
+            .pro-checkbox {
+              margin: 0 0.2em 0 0;
+              vertical-align: middle;
+              accent-color: #2b6cb0;
+              width: 16px;
+              height: 16px;
+            }
+            .pro-checkbox-text {
+              display: inline-block;
+              vertical-align: middle;
+              font-size: 0.98rem;
+              color: #2d3748;
+            }
+            .skill-tag {
+              background: linear-gradient(90deg, #2b6cb0 80%, #2563eb 100%);
+              color: #fff;
+              padding: 0.18rem 0.7rem 0.18rem 0.7rem;
+              border-radius: 16px;
+              font-size: 0.95rem;
+              display: flex;
+              align-items: center;
+              gap: 0.35rem;
+              box-shadow: 0 2px 8px rgba(43,108,176,0.08);
+            }
+            .remove-skill {
+              margin-left: 0.3em;
+              background: none;
+              border: none;
+              color: #e53e3e;
+              cursor: pointer;
+              font-weight: 500;
+              font-size: 1em;
+              line-height: 1;
+              transition: color 0.2s;
+            }
+            .remove-skill:hover {
+              color: #b91c1c;
+            }
+            .pro-checkbox {
+              margin: 0;
+              vertical-align: middle;
+              position: relative;
+              top: 0;
+            }
+            .pro-checkbox-text {
+              display: inline-block;
+              vertical-align: middle;
+            }
+
         .remove-skill {
           cursor: pointer;
           font-weight: bold;
@@ -521,6 +668,11 @@ function PostJob() {
         }
 
         @media (max-width: 768px) {
+            .pro-checkbox-group-grid {
+              grid-template-columns: 1fr;
+              max-height: 56px; /* Show 2 skills at a time on mobile */
+              overflow-y: auto;
+            }
           .post-job-container {
             padding: 1rem;
           }
@@ -537,6 +689,78 @@ function PostJob() {
 
           .form-actions {
             flex-direction: column;
+          }
+        }
+        .custom-skill-actions {
+          display: flex;
+          gap: 0.5em;
+          margin-top: 0.5em;
+        }
+        .add-btn, .clear-btn {
+          background: #e2e8f0;
+          color: #2b6cb0;
+          border: none;
+          border-radius: 6px;
+          padding: 0.4em 1em;
+          font-weight: 500;
+          cursor: pointer;
+          transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+        }
+        .add-btn:hover, .add-btn:focus {
+          background: #2b6cb0;
+          color: #fff;
+          box-shadow: 0 2px 8px rgba(43,108,176,0.12);
+        }
+        .clear-btn:hover, .clear-btn:focus {
+          background: #fed7d7;
+          color: #c53030;
+          box-shadow: 0 2px 8px rgba(197,48,48,0.12);
+        }
+        @media (max-width: 600px) {
+          .custom-skill-actions {
+            flex-direction: column;
+            gap: 0.3em;
+            width: 100%;
+          }
+          .add-btn, .clear-btn {
+            width: 100%;
+            padding: 0.5em 0;
+          }
+        }
+        .custom-skill-actions {
+          display: flex;
+          gap: 0.5em;
+          margin-top: 0.5em;
+        }
+        .add-btn, .clear-btn {
+          background: #e2e8f0;
+          color: #2b6cb0;
+          border: none;
+          border-radius: 6px;
+          padding: 0.4em 1em;
+          font-weight: 500;
+          cursor: pointer;
+          transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+        }
+        .add-btn:hover, .add-btn:focus {
+          background: #2b6cb0;
+          color: #fff;
+          box-shadow: 0 2px 8px rgba(43,108,176,0.12);
+        }
+        .clear-btn:hover, .clear-btn:focus {
+          background: #fed7d7;
+          color: #c53030;
+          box-shadow: 0 2px 8px rgba(197,48,48,0.12);
+        }
+        @media (max-width: 600px) {
+          .custom-skill-actions {
+            flex-direction: column;
+            gap: 0.3em;
+            width: 100%;
+          }
+          .add-btn, .clear-btn {
+            width: 100%;
+            padding: 0.5em 0;
           }
         }
       `}</style>

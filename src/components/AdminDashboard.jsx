@@ -573,8 +573,8 @@ function AdminDashboard() {
 
   const loadAnalytics = async () => {
     try {
-      const token = localStorage.getItem('token')
-  const response = await fetch(`${import.meta.env.VITE_API_URL}/analytics/dashboard`, {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/analytics/dashboard`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
@@ -1504,10 +1504,10 @@ function AdminDashboard() {
                   </div>
                 </div>
 
-                {/* Export Options */}
-                <div className="analytics-actions">
-                  <h4>Export Analytics</h4>
-                  <div className="export-buttons">
+                {/* Export Options - Centered */}
+                <div className="analytics-actions" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: '2rem' }}>
+                  <h4 style={{ textAlign: 'center' }}>Export Analytics</h4>
+                  <div className="export-buttons" style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
                     <button 
                       className="btn secondary"
                       onClick={() => exportData('users', 'csv')}

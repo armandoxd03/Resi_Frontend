@@ -1,3 +1,6 @@
+  // DEBUG: Show userId, userData, and token for troubleshooting
+  const debugUserData = localStorage.getItem('userData');
+  const debugToken = localStorage.getItem('token');
 import { useState, useEffect, useContext } from 'react'
 import { Link } from 'react-router-dom'
 import { AuthContext } from '../context/AuthContext'
@@ -14,6 +17,7 @@ function Settings() {
   })
   
   const [loading, setLoading] = useState(true)
+  const [notFound, setNotFound] = useState(false)
   const [saving, setSaving] = useState(false)
   const [showPasswordModal, setShowPasswordModal] = useState(false)
   const [showSupportModal, setShowSupportModal] = useState(false)
@@ -46,18 +50,20 @@ function Settings() {
       setLoading(true)
       const userData = JSON.parse(localStorage.getItem('userData') || '{}')
       const response = await apiService.getProfile(userData.userId)
-      
-      if (response.user) {
-        const user = response.user
-        setSettings({
-          notificationPreferences: {
-            job: user.notificationPreferences?.job ?? true,
-            message: user.notificationPreferences?.message ?? true
-          },
-          languagePreference: user.languagePreference || 'english'
-        })
-      }
+      let user = response.user || {};
+      setSettings({
+        notificationPreferences: {
+          job: user.notificationPreferences?.job ?? true,
+          message: user.notificationPreferences?.message ?? true
+        },
+        languagePreference: user.languagePreference || 'english'
+      })
     } catch (error) {
+      // On any error, just use default/blank settings
+      setSettings({
+        notificationPreferences: { job: false, message: false },
+        languagePreference: ''
+      });
       console.error('Error loading settings:', error)
       showError('Failed to load settings')
     } finally {
@@ -183,8 +189,9 @@ function Settings() {
           <p>Loading settings...</p>
         </div>
       </div>
-    )
+    );
   }
+  // No 'User not found' UI: always show settings
 
   return (
     <div className="settings-container">
@@ -334,24 +341,23 @@ function Settings() {
                   required
                   minLength="8"
                 />
-                
-                {passwordData.newPassword && (
-                  <div className="password-requirements">
-                    <h4>Password Requirements:</h4>
-                    <ul>
-                      {Object.entries(validatePassword(passwordData.newPassword).requirements).map(([key, met]) => (
-                        <li key={key} className={met ? 'met' : 'unmet'}>
-                          {key === 'length' && 'At least 8 characters'}
-                          {key === 'uppercase' && 'One uppercase letter'}
-                          {key === 'lowercase' && 'One lowercase letter'}
-                          {key === 'number' && 'One number'}
-                          {key === 'special' && 'One special character'}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
               </div>
+              {passwordData.newPassword && (
+                <div className="password-requirements">
+                  <h4>Password Requirements:</h4>
+                  <ul>
+                    {Object.entries(validatePassword(passwordData.newPassword).requirements).map(([key, met]) => (
+                      <li key={key} className={met ? 'met' : 'unmet'}>
+                        {key === 'length' && 'At least 8 characters'}
+                        {key === 'uppercase' && 'One uppercase letter'}
+                        {key === 'lowercase' && 'One lowercase letter'}
+                        {key === 'number' && 'One number'}
+                        {key === 'special' && 'One special character'}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               <div className="form-group">
                 <label>Confirm New Password</label>

@@ -159,7 +159,7 @@ function Register() {
     <div className="register-container fade-in">
       <div className="register-card">
         <div className="register-header">
-          <img src="/logo.png" alt="ResiLinked Logo" className="register-logo" />
+          <img src="/logo.png" alt="ResiLinked Logo" className="register-logo" style={{ width: '120px', height: '120px', objectFit: 'contain', borderRadius: '24px', marginBottom: '1.5rem', boxShadow: '0 8px 32px rgba(147, 51, 234, 0.3)' }} />
           <h1>ResiLinked</h1>
           <p>Gumawa ng bagong account</p>
         </div>
@@ -389,16 +389,34 @@ function Register() {
 
           {formData.userType === 'employee' && (
             <div className="form-group">
-              <label htmlFor="skills">Skills (Optional)</label>
-              <input
-                type="text"
+              <label htmlFor="skills">Skills <span style={{color:'red'}}>*</span></label>
+              <select
                 id="skills"
                 name="skills"
                 value={formData.skills}
                 onChange={handleInputChange}
-                placeholder="e.g. Plumbing, Carpentry, Cleaning (comma separated)"
-              />
-              <small>Separate multiple skills with commas</small>
+                required
+                style={{ minHeight: '48px', fontSize: '1rem' }}
+              >
+                <option value="">Select a skill</option>
+                {['Plumbing','Carpentry','Cleaning','Electrical','Painting','Gardening','Cooking','Driving','Babysitting','Tutoring','IT Support','Customer Service'].map(skill => (
+                  <option key={skill} value={skill}>{skill}</option>
+                ))}
+                <option value="Other">Other</option>
+              </select>
+              {formData.skills === 'Other' && (
+                <input
+                  type="text"
+                  id="otherSkill"
+                  name="otherSkill"
+                  value={formData.otherSkill || ''}
+                  onChange={e => setFormData(prev => ({...prev, otherSkill: e.target.value}))}
+                  placeholder="Add custom skill"
+                  style={{ marginTop: '0.5em' }}
+                  required
+                />
+              )}
+              <small>Select your main skill. If not listed, choose 'Other' and specify.</small>
             </div>
           )}
 
