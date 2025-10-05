@@ -28,7 +28,9 @@ class ApiService {
       "/users/notifications",
       "/jobs/my-jobs",
       "/jobs/my-applications",
-      "/jobs/my-matches"
+      "/jobs/my-matches",
+      "/dashboard",
+      "/analytics"
     ];
     const isProtected = protectedRoutes.some(route => endpoint.startsWith(route));
     const isAuthRoute = endpoint === "/auth/login" || endpoint === "/auth/register";
