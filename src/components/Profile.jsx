@@ -93,6 +93,11 @@ function Profile() {
       const formData = new FormData()
       formData.append('profilePicture', file)
       
+      // Add required user info to formData
+      formData.append('firstName', profile.firstName)
+      formData.append('lastName', profile.lastName)
+      formData.append('email', profile.email)
+      
       const response = await apiService.updateProfileWithFile(formData)
       
       if (response.user) {

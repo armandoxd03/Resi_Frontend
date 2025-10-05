@@ -247,9 +247,15 @@ class ApiService {
 
   async updateProfileWithFile(formData) {
     const token = localStorage.getItem("token");
+    const userData = JSON.parse(localStorage.getItem("userData") || "{}");
     if (!token) {
       throw new Error("Authentication required. Please log in again.");
     }
+
+    // Add required user data to formData
+    if (!formData.get('firstName')) formData.append('firstName', userData.firstName || '');
+    if (!formData.get('lastName')) formData.append('lastName', userData.lastName || '');
+    if (!formData.get('email')) formData.append('email', userData.email || '');
 
     try {
       return await this.request("/users/me", {
