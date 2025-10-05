@@ -109,28 +109,26 @@ function PostJob() {
 
     setLoading(true);
     try {
-  const result = await apiService.createJob(formData);
-      // Use _httpStatus from API response for reliable alert logic
-      if (result._httpStatus === 201) {
-        success(result.alert || result.message || "Job posted successfully!");
-        setFormData({
-          title: '',
-          description: '',
-          price: '',
-          barangay: '',
-          postMethod: 'public',
-          postTiming: 'now',
-          scheduledTime: ''
-        });
-        setSkills([]);
-        localStorage.removeItem('draftJob');
-        setTimeout(() => {
-          navigate('/search-jobs');
-        }, 1500);
-      } else {
-        setFormError(result.alert || result.message || 'Error posting job');
-        showError(result.alert || result.message || 'Error posting job');
-      }
+      const result = await apiService.createJob({
+        ...formData,
+        skillsRequired: skills
+      });
+
+      success("Job posted successfully!");
+      setFormData({
+        title: '',
+        description: '',
+        price: '',
+        barangay: '',
+        postMethod: 'public',
+        postTiming: 'now',
+        scheduledTime: ''
+      });
+      setSkills([]);
+      localStorage.removeItem('draftJob');
+      setTimeout(() => {
+        navigate('/employer-dashboard');
+      }, 1500);
     } catch (err) {
       console.error('Error posting job:', err);
       const errorMessage = err?.message || 'Failed to post job. Please try again.';

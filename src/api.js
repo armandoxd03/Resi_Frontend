@@ -100,6 +100,11 @@ class ApiService {
         const isProfileUpdate =
           endpoint === "/users/me" && config.method === "PUT";
 
+        // Handle rate limiting
+        if (response.status === 429) {
+          throw new Error("Too many attempts. Please wait and try again later.");
+        }
+
         if (response.status === 401 && !isProfilePictureUpload && !isProfileUpdate) {
           localStorage.removeItem("token");
           localStorage.removeItem("user");
@@ -219,6 +224,11 @@ class ApiService {
     return this.request("/users/me");
   }
 
+  async getWorkers(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/users/workers${query ? "?" + query : ""}`);
+  }
+
     // Employee dashboard stats
     async getEmployeeDashboardStats(userId) {
       return this.request(`/dashboard/employee/${userId}/stats`);
@@ -310,6 +320,10 @@ class ApiService {
   // ================= Jobs =================
   async getPopularJobs() {
     return this.request("/jobs/popular");
+  }
+
+  async getMyMatches() {
+    return this.request("/jobs/my-matches");
   }
 
   async getJobs(params = {}) {
