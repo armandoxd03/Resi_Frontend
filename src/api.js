@@ -30,7 +30,10 @@ class ApiService {
       "/jobs/my-applications",
       "/jobs/my-matches",
       "/dashboard",
-      "/analytics"
+      "/analytics",
+      "/auth/me",
+      "/users/me/password",
+      "/users/me/settings"
     ];
     const isProtected = protectedRoutes.some(route => endpoint.startsWith(route));
     const isAuthRoute = endpoint === "/auth/login" || endpoint === "/auth/register";
@@ -243,10 +246,17 @@ class ApiService {
   }
 
   async updateProfileWithFile(formData) {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      throw new Error("Authentication required. Please log in again.");
+    }
+
     try {
       return await this.request("/users/me", {
         method: "PUT",
-        headers: {},
+        headers: {
+          "Authorization": `Bearer ${token}`
+        },
         body: formData,
       });
     } catch (error) {
