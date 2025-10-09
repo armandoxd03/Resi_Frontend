@@ -12,12 +12,14 @@ function EmployeeDashboard() {
     rating: 0
   });
   const [myApplications, setMyApplications] = useState([]);
+  const [applicationHistory, setApplicationHistory] = useState([]);
   const [jobMatches, setJobMatches] = useState([]);
   const [loading, setLoading] = useState({
     stats: false,
     applications: false,
     matches: false
   });
+  const [activeTab, setActiveTab] = useState('active'); // 'active' or 'history'
   const { user, isAuthenticated, loading: authLoading } = useContext(AuthContext);
   const { error: showError } = useContext(AlertContext);
   const navigate = useNavigate();
@@ -78,8 +80,18 @@ function EmployeeDashboard() {
       // Load job applications
       try {
         setLoading(prev => ({ ...prev, applications: true }));
-        const applications = await apiService.getMyApplications();
-        setMyApplications(applications);
+        const response = await apiService.getMyApplications();
+        
+        // Check for the new format with active applications and history
+        if (response && response.activeApplications) {
+          console.log('Received applications data:', response);
+          setMyApplications(response.activeApplications || []);
+          setApplicationHistory(response.applicationHistory || []);
+        } else {
+          // Backward compatibility for old response format
+          console.log('Received old format applications data');
+          setMyApplications(Array.isArray(response) ? response : []);
+        }
       } catch (error) {
         console.error('Error loading applications:', error);
         showError('Failed to load your job applications');
@@ -108,9 +120,16 @@ function EmployeeDashboard() {
     try {
       await apiService.applyToJob(jobId);
       showError('Application submitted successfully!', 'success');
+      
       // Refresh applications
-      const applications = await apiService.getMyApplications();
-      setMyApplications(applications);
+      const appResponse = await apiService.getMyApplications();
+      if (appResponse && appResponse.activeApplications) {
+        setMyApplications(appResponse.activeApplications || []);
+        setApplicationHistory(appResponse.applicationHistory || []);
+      } else {
+        // Backward compatibility
+        setMyApplications(Array.isArray(appResponse) ? appResponse : []);
+      }
     } catch (error) {
       showError(error.message || 'Failed to apply for job');
     }
@@ -118,13 +137,70 @@ function EmployeeDashboard() {
 
   const handleCancelApplication = async (jobId) => {
     try {
-      await apiService.cancelApplication(jobId);
+      // Enhanced logging to debug the user ID and job ID being used
+      console.log('Attempting to cancel application for job:', jobId);
+      console.log('Current user ID:', user?.userId);
+      
+      // Get the job to verify the user has an application before attempting to cancel
+      const job = myApplications.find(j => j._id === jobId);
+      if (!job) {
+        console.error('Job not found in myApplications list:', jobId);
+        showError('Error: Job not found in your applications');
+        return;
+      }
+      
+      // Log application data for debugging
+      console.log('Job applicants:', job.applicants);
+      
+      const userApplication = job.applicants.find(a => 
+        a.user && (
+          (typeof a.user === 'string' && a.user === user?.userId) || 
+          (typeof a.user === 'object' && a.user.toString && a.user.toString() === user?.userId)
+        )
+      );
+      
+      console.log('Found user application:', userApplication);
+      
+      if (!userApplication) {
+        showError('No application record found for this job. Try refreshing the page.');
+        return;
+      }
+      
+      const response = await apiService.cancelApplication(jobId);
       showError('Application cancelled successfully!', 'success');
+      
       // Refresh applications
-      const applications = await apiService.getMyApplications();
-      setMyApplications(applications);
+      const appResponse = await apiService.getMyApplications();
+      if (appResponse && appResponse.activeApplications) {
+        setMyApplications(appResponse.activeApplications || []);
+        setApplicationHistory(appResponse.applicationHistory || []);
+      } else {
+        // Backward compatibility
+        setMyApplications(Array.isArray(appResponse) ? appResponse : []);
+      }
     } catch (error) {
-      showError(error.message || 'Failed to cancel application');
+      console.error('Cancel application error:', error);
+      
+      // Provide more specific error messages based on the error
+      if (error.message === 'No application found') {
+        showError('Application not found. It may have already been cancelled or processed.');
+        
+        // Refresh applications to make sure UI is up to date
+        try {
+          const appResponse = await apiService.getMyApplications();
+          if (appResponse && appResponse.activeApplications) {
+            setMyApplications(appResponse.activeApplications || []);
+            setApplicationHistory(appResponse.applicationHistory || []);
+          } else {
+            // Backward compatibility
+            setMyApplications(Array.isArray(appResponse) ? appResponse : []);
+          }
+        } catch (refreshError) {
+          console.error('Failed to refresh applications after error:', refreshError);
+        }
+      } else {
+        showError(error.message || 'Failed to cancel application');
+      }
     }
   };
 
@@ -133,6 +209,18 @@ function EmployeeDashboard() {
     if (application.status === 'accepted') return 'Accepted';
     if (application.status === 'rejected') return 'Rejected';
     return 'Pending';
+  };
+  
+  // Helper function to find user's application in a job
+  const findUserApplication = (job) => {
+    if (!job || !job.applicants || !user) return null;
+    
+    return job.applicants.find(a => 
+      a.user && (
+        (typeof a.user === 'string' && a.user === user.userId) || 
+        (typeof a.user === 'object' && a.user.toString && a.user.toString() === user.userId)
+      )
+    );
   };
 
   if (loading.stats || loading.applications || loading.matches) {
@@ -202,49 +290,105 @@ function EmployeeDashboard() {
       <div className="tab-content">
         {/* My Applications Section */}
         <section className="dashboard-section">
-          <h2>My Applications</h2>
-          <div className="applications-grid">
-            {myApplications.length > 0 ? (
-              myApplications.map(job => (
-                <div key={job._id} className="job-card">
-                  <div className="job-header">
-                    <h3>{job.title}</h3>
-                    <div className="job-price">₱{job.price?.toLocaleString()}</div>
-                  </div>
-                  <div className="job-meta">
-                    <div className="meta-item">
-                      <span className="icon">📍</span>
-                      {job.barangay}
+          <div className="section-header">
+            <h2>My Applications</h2>
+            <div className="tab-navigation">
+              <button 
+                className={`tab-button ${activeTab === 'active' ? 'active' : ''}`}
+                onClick={() => setActiveTab('active')}
+              >
+                Active Applications
+              </button>
+              <button 
+                className={`tab-button ${activeTab === 'history' ? 'active' : ''}`}
+                onClick={() => setActiveTab('history')}
+              >
+                Application History
+              </button>
+            </div>
+          </div>
+
+          {activeTab === 'active' && (
+            <div className="applications-grid">
+              {myApplications.length > 0 ? (
+                myApplications.map(job => (
+                  <div key={job._id} className="job-card">
+                    <div className="job-header">
+                      <h3>{job.title}</h3>
+                      <div className="job-price">₱{job.price?.toLocaleString()}</div>
                     </div>
-                    <div className="meta-item">
-                      <span className="icon">📅</span>
-                      {new Date(job.datePosted).toLocaleDateString()}
+                    <div className="job-meta">
+                      <div className="meta-item">
+                        <span className="icon">📍</span>
+                        {job.barangay}
+                      </div>
+                      <div className="meta-item">
+                        <span className="icon">📅</span>
+                        {new Date(job.datePosted).toLocaleDateString()}
+                      </div>
+                      <div className="meta-item">
+                        <span className="status pending">Pending</span>
+                      </div>
                     </div>
-                    <div className="meta-item">
-                      <span className={`status ${getApplicationStatus(job.applicants.find(a => a.user === user?.userId)).toLowerCase()}`}>
-                        {getApplicationStatus(job.applicants.find(a => a.user === user?.userId))}
-                      </span>
-                    </div>
-                  </div>
-                  {job.isOpen && job.applicants.find(a => a.user === user?.userId)?.status === 'pending' && (
                     <div className="job-actions">
                       <button 
                         onClick={() => handleCancelApplication(job._id)}
                         className="btn danger"
+                        data-job-id={job._id}
                       >
                         Cancel Application
                       </button>
                     </div>
-                  )}
+                  </div>
+                ))
+              ) : (
+                <div className="no-data">
+                  <p>No active applications</p>
+                  <Link to="/search-jobs" className="btn primary">Browse Available Jobs</Link>
                 </div>
-              ))
-            ) : (
-              <div className="no-data">
-                <p>No applications yet</p>
-                <Link to="/search-jobs" className="btn primary">Browse Available Jobs</Link>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'history' && (
+            <div className="applications-grid">
+              {applicationHistory.length > 0 ? (
+                applicationHistory.map(job => (
+                  <div key={job._id} className="job-card">
+                    <div className="job-header">
+                      <h3>{job.title}</h3>
+                      <div className="job-price">₱{job.price?.toLocaleString()}</div>
+                    </div>
+                    <div className="job-meta">
+                      <div className="meta-item">
+                        <span className="icon">📍</span>
+                        {job.barangay}
+                      </div>
+                      <div className="meta-item">
+                        <span className="icon">📅</span>
+                        {new Date(job.datePosted).toLocaleDateString()}
+                      </div>
+                      <div className="meta-item">
+                        <span className={`status ${job.applicationInfo?.status.toLowerCase() || 'unknown'}`}>
+                          {job.applicationInfo?.status === 'accepted' ? 'Accepted' : 
+                           job.applicationInfo?.status === 'rejected' ? 'Rejected' : 'Closed'}
+                        </span>
+                      </div>
+                    </div>
+                    {job.applicationInfo?.assignedToMe && (
+                      <div className="job-actions">
+                        <span className="assigned-badge">✓ Assigned to you</span>
+                      </div>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <div className="no-data">
+                  <p>No application history yet</p>
+                </div>
+              )}
+            </div>
+          )}
         </section>
 
         {/* Job Matches Section */}
@@ -417,9 +561,48 @@ function EmployeeDashboard() {
           margin-bottom: 2rem;
         }
 
+        .dashboard-section .section-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 1.5rem;
+          flex-wrap: wrap;
+        }
+
         .dashboard-section h2 {
           color: #2b6cb0;
-          margin: 0 0 1.5rem 0;
+          margin: 0;
+        }
+        
+        .tab-navigation {
+          display: flex;
+          gap: 0.5rem;
+        }
+        
+        .tab-button {
+          background: #e2e8f0;
+          color: #2d3748;
+          border: none;
+          padding: 0.5rem 1rem;
+          border-radius: 6px;
+          cursor: pointer;
+          font-weight: 500;
+          transition: all 0.2s;
+        }
+        
+        .tab-button.active {
+          background: #2b6cb0;
+          color: white;
+        }
+        
+        .assigned-badge {
+          display: inline-block;
+          background: #48bb78;
+          color: white;
+          padding: 0.25rem 0.75rem;
+          border-radius: 12px;
+          font-size: 0.9rem;
+          font-weight: 500;
         }
 
         .applications-grid,

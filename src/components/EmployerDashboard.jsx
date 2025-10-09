@@ -182,28 +182,64 @@ function EmployerDashboard() {
   const deleteJob = async (jobId) => {
     if (window.confirm('Are you sure you want to delete this job?')) {
       try {
-        const token = localStorage.getItem('token')
-        const response = await fetch(`${import.meta.env.VITE_API_URL || "https://resilinked-9mf9.vercel.app/api"}/jobs/${jobId}`, {
+        console.log('Deleting job with ID:', jobId);
+        const token = localStorage.getItem('token');
+        
+        if (!token) {
+          console.error('No authentication token found');
+          showError('Authorization failed. Please log in again.');
+          return;
+        }
+        
+        const apiUrl = import.meta.env.VITE_API_URL || "https://resilinked-9mf9.vercel.app/api";
+        const endpoint = `${apiUrl}/jobs/${jobId}`;
+        console.log('DELETE request to endpoint:', endpoint);
+        
+        const response = await fetch(endpoint, {
           method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        const responseData = await response.json();
+        console.log('Delete job response:', {
+          status: response.status,
+          ok: response.ok,
+          data: responseData
+        });
         
         if (response.ok) {
-          success('Job deleted successfully')
-          loadMyJobs()
-          loadDashboardStats()
+          success('Job deleted successfully');
+          // Refresh the jobs list and dashboard stats
+          loadMyJobs();
+          loadDashboardStats();
         } else {
-          showError('Failed to delete job')
+          showError(`Failed to delete job: ${responseData.message || responseData.alert || 'Unknown error'}`);
         }
       } catch (error) {
-        console.error('Error deleting job:', error)
-        showError('Error deleting job')
+        console.error('Error deleting job:', error);
+        showError(`Error deleting job: ${error.message}`);
       }
     }
   }
 
   const handleApplication = async (applicationId, action, jobId, userId) => {
     try {
+      console.log(`handleApplication called with:`, {
+        applicationId,
+        action,
+        jobId,
+        userId
+      })
+      
+      if (!userId) {
+        console.error('Missing userId parameter in handleApplication');
+        showError(`Failed to ${action} application: Missing user ID`);
+        return;
+      }
+
       const token = localStorage.getItem('token')
       let endpoint, method
       
@@ -215,6 +251,8 @@ function EmployerDashboard() {
         method = 'POST'
       }
       
+      console.log(`Making ${method} request to ${endpoint} with userId: ${userId}`);
+      
       const response = await fetch(endpoint, {
         method,
         headers: { 
@@ -224,15 +262,25 @@ function EmployerDashboard() {
         body: JSON.stringify({ userId })
       })
       
+      const responseData = await response.json();
+      console.log(`Response for ${action}:`, {
+        status: response.status,
+        ok: response.ok,
+        data: responseData
+      });
+      
       if (response.ok) {
         success(`Application ${action}ed successfully`)
         loadApplications()
+        // Also reload the jobs to reflect changes
+        loadMyJobs()
+        loadDashboardStats()
       } else {
-        showError(`Failed to ${action} application`)
+        showError(`Failed to ${action} application: ${responseData.message || responseData.alert || 'Unknown error'}`)
       }
     } catch (error) {
       console.error(`Error ${action}ing application:`, error)
-      showError(`Error ${action}ing application`)
+      showError(`Error ${action}ing application: ${error.message}`)
     }
   }
 
@@ -401,8 +449,8 @@ function EmployerDashboard() {
                         {job.applicants?.map(app => (
                           <div key={app._id} className="applicant-card">
                             <div className="applicant-info">
-                              <h4>{app.applicantId?.firstName} {app.applicantId?.lastName}</h4>
-                              <p>{app.applicantId?.email}</p>
+                              <h4>{app.user?.firstName} {app.user?.lastName}</h4>
+                              <p>{app.user?.email}</p>
                               <span className={`status ${app.status}`}>
                                 {app.status || 'pending'}
                               </span>
@@ -412,13 +460,13 @@ function EmployerDashboard() {
                                 <>
                                   <button 
                                     className="btn primary"
-                                    onClick={() => handleApplication(app._id, 'accept', job._id, app.applicantId?._id)}
+                                    onClick={() => handleApplication(app._id, 'accept', job._id, app.user?._id)}
                                   >
                                     Accept
                                   </button>
                                   <button 
                                     className="btn danger"
-                                    onClick={() => handleApplication(app._id, 'reject', job._id, app.applicantId?._id)}
+                                    onClick={() => handleApplication(app._id, 'reject', job._id, app.user?._id)}
                                   >
                                     Reject
                                   </button>
