@@ -1,0 +1,568 @@
+import { useState, useEffect } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
+import { useAlert } from '../context/AlertContext'
+import apiService from '../api'
+
+function Register() {
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    mobileNo: '',
+    address: '',
+    barangay: '',
+    gender: '',
+    idType: '',
+    idNumber: '',
+    userType: 'employee',
+    skills: [],
+    idFrontImage: null,
+    idBackImage: null,
+    profilePicture: null,
+    otherBarangay: ''
+  })
+  
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [passwordError, setPasswordError] = useState('')
+  const [verificationSent, setVerificationSent] = useState(false)
+  const [skillsDropdownOpen, setSkillsDropdownOpen] = useState(false)
+  
+  const { isAuthenticated } = useAuth()
+  const { success, error: showError } = useAlert()
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    // Redirect if already authenticated
+    if (isAuthenticated) {
+      navigate('/landing')
+    }
+  }, [isAuthenticated, navigate])
+
+  const handleInputChange = (e) => {
+    const { name, value, type, files } = e.target
+    
+    if (type === 'file') {
+      setFormData(prev => ({
+        ...prev,
+        [name]: files[0]
+      }))
+    } else if (type === 'select-multiple') {
+      // Handle multi-select dropdown
+      const selectedOptions = Array.from(e.target.selectedOptions).map(option => option.value);
+      setFormData(prev => ({
+        ...prev,
+        [name]: selectedOptions
+      }))
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }))
+    }
+    
+    // Clear error when user starts typing
+    if (error) {
+      setError('')
+    }
+
+    // Special case for barangay field
+    if (name === 'barangay' && value === 'other') {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value,
+        otherBarangay: ''
+      }))
+    }
+  }
+  
+  // Toggle skills dropdown visibility
+  const toggleSkillsDropdown = () => {
+    setSkillsDropdownOpen(prev => !prev)
+  }
+  
+  // Handle skill checkbox selection
+  const handleSkillCheckbox = (skill) => {
+    setFormData(prev => ({
+      ...prev,
+      skills: prev.skills.includes(skill)
+        ? prev.skills.filter(s => s !== skill)
+        : [...prev.skills, skill]
+    }))
+  }
+
+  const checkPasswordsMatch = () => {
+    if (formData.confirmPassword === "") {
+      setPasswordError("")
+      return
+    }
+
+    if (formData.password === formData.confirmPassword) {
+      setPasswordError("Passwords match!")
+    } else {
+      setPasswordError("Passwords do not match!")
+    }
+  }
+
+  useEffect(() => {
+    checkPasswordsMatch()
+  }, [formData.password, formData.confirmPassword])
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+
+    if (formData.password !== formData.confirmPassword) {
+      setError("Passwords do not match!")
+      return
+    }
+    
+    // Validate that at least one skill is selected if employee or both
+    if ((formData.userType === 'employee' || formData.userType === 'both') && 
+        formData.skills.length === 0 && !formData.otherSkill) {
+      setError("Please select at least one skill")
+      return
+    }
+
+    setLoading(true)
+    setError('')
+
+    const submitFormData = new FormData()
+    
+    // Add all text fields
+    Object.keys(formData).forEach(key => {
+      if (key === 'skills') {
+        // Handle skills array - append each skill separately
+        if (Array.isArray(formData.skills)) {
+          formData.skills.forEach(skill => {
+            submitFormData.append("skills", skill);
+          });
+        }
+      } else if (key === 'otherSkill' && formData.skills.includes('Other')) {
+        // Add other skill as a skill item
+        submitFormData.append("skills", formData.otherSkill);
+      } else if (key === 'barangay' && formData.barangay === 'other') {
+        // Use the otherBarangay value if barangay is set to 'other'
+        submitFormData.append('barangay', formData.otherBarangay);
+      } else if (key !== 'confirmPassword' && key !== 'idFrontImage' && key !== 'idBackImage' && 
+                key !== 'profilePicture' && key !== 'skills' && key !== 'otherBarangay' &&
+                key !== 'otherSkill') {
+        submitFormData.append(key, formData[key])
+      }
+    })
+    
+    // Add files
+    if (formData.idFrontImage) {
+      submitFormData.append("idFrontImage", formData.idFrontImage)
+    }
+    
+    if (formData.idBackImage) {
+      submitFormData.append("idBackImage", formData.idBackImage)
+    }
+    
+    if (formData.profilePicture) {
+      submitFormData.append("profilePicture", formData.profilePicture)
+    }
+    
+    try {
+      const data = await apiService.register(submitFormData)
+      
+      if (data._httpStatus === 201) {
+        setVerificationSent(true)
+        success("Registration successful. Verification email sent!")
+        // Clear form data on success
+        setFormData({
+          firstName: '',
+          lastName: '',
+          email: '',
+          password: '',
+          confirmPassword: '',
+          mobileNo: '',
+          address: '',
+          barangay: '',
+          gender: '',
+          idType: '',
+          idNumber: '',
+          userType: 'employee',
+          skills: [],
+          idFrontImage: null,
+          idBackImage: null,
+          profilePicture: null
+        })
+      } else {
+        setError("Something went wrong. Please try again.")
+      }
+    } catch (err) {
+      console.error("Registration error:", err)
+      setError(err.message || "Registration failed. Please try again.")
+      showError(err.message || "Registration failed. Please try again.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (verificationSent) {
+    return (
+      <div className="container verification-sent">
+        <div className="auth-form-container">
+          <div className="auth-form-header">
+            <h1>Verification Email Sent</h1>
+          </div>
+          <div className="verification-message">
+            <p>A verification email has been sent to <strong>{formData.email}</strong></p>
+            <p>Please check your inbox and click the verification link to activate your account.</p>
+            <p>Don't see the email? Check your spam folder or <Link to="/resend-verification">request a new verification link</Link>.</p>
+          </div>
+          <div className="auth-form-footer">
+            <p>Already verified? <Link to="/login">Log in</Link></p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="container">
+      <div className="auth-form-container">
+        <div className="auth-form-header">
+          <h1>ResiLinked</h1>
+          <p>Gumawa ng bagong account</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="register-form">
+          {error && (
+            <div className="error-message">
+              {error}
+            </div>
+          )}
+
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="firstName">First Name</label>
+              <input
+                type="text"
+                id="firstName"
+                name="firstName"
+                value={formData.firstName}
+                onChange={handleInputChange}
+                required
+                placeholder="Unang pangalan"
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="lastName">Last Name</label>
+              <input
+                type="text"
+                id="lastName"
+                name="lastName"
+                value={formData.lastName}
+                onChange={handleInputChange}
+                required
+                placeholder="Apelyido"
+              />
+            </div>
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="mobileNo">Mobile Number</label>
+            <input
+              type="tel"
+              id="mobileNo"
+              name="mobileNo"
+              value={formData.mobileNo}
+              onChange={handleInputChange}
+              required
+              pattern="[0-9]+"
+              placeholder="09XXXXXXXXX"
+              maxLength="11"
+              title="Mobile number should be 11 digits and start with 09"
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="address">Address</label>
+            <input
+              type="text"
+              id="address"
+              name="address"
+              value={formData.address}
+              onChange={handleInputChange}
+              required
+              placeholder="Address"
+            />
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="barangay">Barangay</label>
+              <select
+                id="barangay"
+                name="barangay"
+                value={formData.barangay}
+                onChange={handleInputChange}
+                required
+              >
+                <option value="">Select Barangay</option>
+                <option value="Sta. Teresita">Sta. Teresita</option>
+                <option value="Sto. Rosario">Sto. Rosario</option>
+                <option value="Sto. Lucia">Sto. Lucia</option>
+                <option value="other">Other</option>
+              </select>
+              {formData.barangay === 'other' && (
+                <input
+                  type="text"
+                  id="otherBarangay"
+                  name="otherBarangay"
+                  value={formData.otherBarangay}
+                  onChange={handleInputChange}
+                  placeholder="Specify your barangay"
+                  style={{ marginTop: '0.75em' }}
+                  required={formData.barangay === 'other'}
+                />
+              )}
+            </div>
+            
+            {(formData.userType === 'employee' || formData.userType === 'both') && (
+              <div className="form-group">
+                <label htmlFor="skills">Skills <span style={{color:'red'}}>*</span></label>
+                <div className="custom-dropdown-container">
+                  <div 
+                    className="custom-dropdown-header" 
+                    onClick={toggleSkillsDropdown}
+                  >
+                    <div className="dropdown-selected-value">
+                      {formData.skills.length > 0 
+                        ? `${formData.skills.length} skill(s) selected` 
+                        : 'Select skills'}
+                    </div>
+                    <div className="dropdown-arrow">▼</div>
+                  </div>
+                  
+                  {skillsDropdownOpen && (
+                    <div className="custom-dropdown-options">
+                      {['Plumbing','Carpentry','Cleaning','Electrical','Painting','Gardening','Cooking','Driving','Babysitting','Tutoring','IT Support','Customer Service','Other'].map(skill => (
+                        <div key={skill} className="custom-dropdown-option">
+                          <label className="checkbox-container">
+                            <input
+                              type="checkbox"
+                              checked={formData.skills.includes(skill)}
+                              onChange={() => handleSkillCheckbox(skill)}
+                            />
+                            <span className="checkbox-text">{skill}</span>
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                
+                {formData.skills.includes('Other') && (
+                  <input
+                    type="text"
+                    id="otherSkill"
+                    name="otherSkill"
+                    value={formData.otherSkill || ''}
+                    onChange={e => setFormData(prev => ({...prev, otherSkill: e.target.value}))}
+                    placeholder="Specify your skill"
+                    style={{ marginTop: '0.75em' }}
+                    required={formData.skills.includes('Other')}
+                  />
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="email">Email Address</label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              value={formData.email}
+              onChange={handleInputChange}
+              required
+              placeholder="Email address"
+            />
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="password">Password</label>
+              <input
+                type="password"
+                id="password"
+                name="password"
+                value={formData.password}
+                onChange={handleInputChange}
+                required
+                minLength="8"
+                placeholder="Password (minimum 8 characters)"
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="confirmPassword">Confirm Password</label>
+              <div className="password-input-wrapper">
+                <input
+                  type="password"
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={handleInputChange}
+                  required
+                  placeholder="Confirm password"
+                  style={
+                    passwordError 
+                      ? passwordError === "Passwords match!" 
+                        ? { borderColor: '#059669' } 
+                        : { borderColor: '#dc2626' }
+                      : {}
+                  }
+                />
+                {passwordError && (
+                  <div 
+                    className={`password-match ${
+                      passwordError === "Passwords match!" ? 'match' : 'mismatch'
+                    }`}
+                  >
+                    {passwordError}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="gender">Gender</label>
+              <select
+                id="gender"
+                name="gender"
+                value={formData.gender}
+                onChange={handleInputChange}
+                required
+              >
+                <option value="">Pumili ng gender</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label htmlFor="userType">User Type</label>
+              <select
+                id="userType"
+                name="userType"
+                value={formData.userType}
+                onChange={handleInputChange}
+                required
+              >
+                <option value="employee">Employee</option>
+                <option value="employer">Employer</option>
+                <option value="both">Both</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="idType">ID Type</label>
+              <select
+                id="idType"
+                name="idType"
+                value={formData.idType}
+                onChange={handleInputChange}
+                required
+              >
+                <option value="">Pumili ng ID</option>
+                <option value="drivers_license">Driver's License</option>
+                <option value="passport">Passport</option>
+                <option value="national_id">National ID</option>
+                <option value="voter_id">Voter's ID</option>
+                <option value="sss_id">SSS ID</option>
+                <option value="philhealth_id">PhilHealth ID</option>
+                <option value="tin_id">TIN ID</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label htmlFor="idNumber">ID Number</label>
+              <input
+                type="text"
+                id="idNumber"
+                name="idNumber"
+                value={formData.idNumber}
+                onChange={handleInputChange}
+                required
+                placeholder="ID number"
+              />
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="idFrontImage">ID Front Image</label>
+              <input
+                type="file"
+                id="idFrontImage"
+                name="idFrontImage"
+                onChange={handleInputChange}
+                accept="image/*"
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="idBackImage">ID Back Image</label>
+              <input
+                type="file"
+                id="idBackImage"
+                name="idBackImage"
+                onChange={handleInputChange}
+                accept="image/*"
+                required
+              />
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="profilePicture">Profile Picture (Optional)</label>
+            <input
+              type="file"
+              id="profilePicture"
+              name="profilePicture"
+              onChange={handleInputChange}
+              accept="image/*"
+            />
+          </div>
+          
+          <div className="form-group">
+            <div className="checkbox-container">
+              <input 
+                type="checkbox" 
+                id="terms" 
+                required
+              />
+              <label htmlFor="terms" className="terms-label">
+                I agree to the <a href="#" onClick={(e) => e.preventDefault()}>Terms and Conditions</a>
+              </label>
+            </div>
+          </div>
+
+          <button 
+            type="submit" 
+            className="btn btn-primary full-width"
+            disabled={loading}
+          >
+            {loading ? 'Registering...' : 'Register'}
+          </button>
+
+          <div className="auth-form-footer">
+            <p>Already have an account? <Link to="/login">Login</Link></p>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+export default Register

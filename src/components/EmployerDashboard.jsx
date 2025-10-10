@@ -2,7 +2,6 @@ import { useState, useEffect, useContext } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { AuthContext } from '../context/AuthContext'
 import { AlertContext } from '../context/AlertContext'
-import apiService from '../api'
 
 function EmployerDashboard() {
   const [loading, setLoading] = useState(true)
@@ -15,7 +14,7 @@ function EmployerDashboard() {
   })
   const [myJobs, setMyJobs] = useState([])
   const [applications, setApplications] = useState([])
-  const [recommendedWorkers, setRecommendedWorkers] = useState([])
+  const [workers, setWorkers] = useState([])
   const [tabLoading, setTabLoading] = useState(false)
 
   const { user, hasAccessTo } = useContext(AuthContext)
@@ -30,7 +29,6 @@ function EmployerDashboard() {
     }
     
     loadDashboardData()
-    loadRecommendedWorkers()
   }, [hasAccessTo, navigate, showError])
 
   const loadDashboardData = async () => {
@@ -152,81 +150,33 @@ function EmployerDashboard() {
   }
 
   const loadWorkers = async () => {
-    // This function is kept for compatibility with loadTabContent
-    // Now we just load recommended workers
-    await loadRecommendedWorkers()
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(`${import.meta.env.VITE_API_URL || "https://resilinked-9mf9.vercel.app/api"}/users/workers`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      
+      if (response.ok) {
+        const workersData = await response.json()
+        setWorkers(workersData)
+      } else {
+        // Fallback for demo
+        setWorkers([])
+      }
+    } catch (error) {
+      console.error('Error loading workers:', error)
+      setWorkers([]) // Graceful fallback
+    }
   }
 
   const handleTabChange = async (tabId) => {
     setCurrentTab(tabId)
     await loadTabContent(tabId)
   }
-  
-  const loadRecommendedWorkers = async () => {
-    try {
-      setTabLoading(true)
-      const response = await apiService.getTopRated()
-      if (Array.isArray(response)) {
-        setRecommendedWorkers(response)
-        console.log('Loaded recommended workers:', response.length)
-      } else {
-        console.error('Invalid response format for recommended workers:', response)
-        setRecommendedWorkers([])
-      }
-    } catch (error) {
-      console.error('Error loading recommended workers:', error)
-      setRecommendedWorkers([])
-      showError('Failed to load recommended workers')
-    } finally {
-      setTabLoading(false)
-    }
-  }
 
   const editJob = (jobId) => {
     // Navigate to edit job page (when implemented)
     navigate(`/edit-job/${jobId}`)
-  }
-  
-  const completeJob = async (jobId) => {
-    if (window.confirm('Are you sure you want to mark this job as complete? Payment will be distributed to the worker\'s goals.')) {
-      try {
-        console.log('Completing job with ID:', jobId);
-        
-        setTabLoading(true);
-        const response = await apiService.completeJob(jobId);
-        
-        let successMsg = 'Job completed successfully!';
-        
-        if (response.goalUpdateResult) {
-          const { updated, completed, noActiveGoals } = response.goalUpdateResult;
-          
-          if (noActiveGoals) {
-            successMsg += ' Worker had no active goals, but payment was processed.';
-          } else if (completed && completed.length > 0) {
-            successMsg += ` ${completed.length} goal(s) completed! `;
-            
-            if (updated && updated.length > 0) {
-              successMsg += `Progress updated on ${updated.length} additional goal(s).`;
-            }
-          } else if (updated && updated.length > 0) {
-            successMsg += ` Progress updated on ${updated.length} goal(s).`;
-          }
-          
-          console.log('Goal update result:', response.goalUpdateResult);
-        }
-        
-        success(successMsg);
-        
-        // Refresh the jobs list and dashboard stats
-        await loadMyJobs();
-        await loadDashboardStats();
-      } catch (error) {
-        console.error('Error completing job:', error);
-        showError(`Error completing job: ${error.message}`);
-      } finally {
-        setTabLoading(false);
-      }
-    }
   }
 
   const deleteJob = async (jobId) => {
@@ -394,19 +344,10 @@ function EmployerDashboard() {
           <span className="icon">➕</span>
           Post New Job
         </Link>
-        <div className="action-buttons">
-          <button 
-            className="action-btn secondary"
-            onClick={() => handleTabChange('workers')}
-          >
-            <span className="icon">🏆</span>
-            Recommended Workers
-          </button>
-          <Link to="/search-workers" className="action-btn secondary">
-            <span className="icon">🔍</span>
-            Search Workers
-          </Link>
-        </div>
+        <Link to="/search-jobs" className="action-btn secondary">
+          <span className="icon">🔍</span>
+          Browse Workers
+        </Link>
       </div>
 
       {/* Tab Navigation */}
@@ -461,16 +402,10 @@ function EmployerDashboard() {
                           {job.applicants ? job.applicants.length : 0} applicants
                         </div>
                         <div className="meta-item">
-                          <span className={`status ${job.completed ? 'completed' : job.isOpen !== false ? 'active' : 'closed'}`}>
-                            {job.completed ? 'Completed' : job.isOpen !== false ? 'Active' : 'Closed'}
+                          <span className={`status ${job.isOpen !== false ? 'active' : 'closed'}`}>
+                            {job.isOpen !== false ? 'Active' : 'Closed'}
                           </span>
                         </div>
-                        {job.assignedTo && (
-                          <div className="meta-item">
-                            <span className="icon">👤</span>
-                            Assigned to: {job.assignedTo.firstName} {job.assignedTo.lastName}
-                          </div>
-                        )}
                       </div>
                       
                       <p className="job-description">
@@ -479,15 +414,6 @@ function EmployerDashboard() {
                       </p>
                       
                       <div className="job-actions">
-                        {job.assignedTo && !job.completed && (
-                          <button 
-                            className="btn success"
-                            onClick={() => completeJob(job._id)}
-                            title="Mark job as completed and process payment"
-                          >
-                            Complete Job
-                          </button>
-                        )}
                         <button 
                           className="btn secondary"
                           onClick={() => editJob(job._id)}
@@ -562,75 +488,36 @@ function EmployerDashboard() {
 
             {/* Workers Tab */}
             {currentTab === 'workers' && (
-              <>
-                <div className="section-header">
-                  <h2>Recommended Workers</h2>
-                  <Link to="/search-workers" className="btn primary">
-                    <span className="icon">🔍</span>
-                    Advanced Search
-                  </Link>
-                </div>
-                
-                <div className="dashboard-section">
-                  <div className="workers-grid">
-                    {tabLoading ? (
-                      <div className="no-data">
-                        <div className="spinner"></div>
-                        <p>Loading recommended workers...</p>
+              <div className="workers-grid">
+                {workers.length > 0 ? (
+                  workers.map(worker => (
+                    <div key={worker._id} className="worker-card">
+                      <div className="worker-header">
+                        <h3>{worker.firstName} {worker.lastName}</h3>
+                        <div className="worker-rating">⭐ {worker.rating || '4.5'}</div>
                       </div>
-                    ) : recommendedWorkers.length > 0 ? (
-                      recommendedWorkers.map(worker => (
-                        <div key={worker._id} className="worker-card">
-                          <div className="worker-header">
-                            <div className="worker-profile">
-                              {worker.profilePicture ? (
-                                <img 
-                                  src={`data:image/jpeg;base64,${worker.profilePicture}`} 
-                                  alt={`${worker.firstName} ${worker.lastName}`} 
-                                  className="worker-avatar"
-                                />
-                              ) : (
-                                <div className="worker-avatar-placeholder">
-                                  {worker.firstName?.[0]}{worker.lastName?.[0]}
-                                </div>
-                              )}
-                              <h3>{worker.firstName} {worker.lastName}</h3>
-                            </div>
-                            <div className="worker-rating">⭐ {worker.averageRating?.toFixed(1) || '4.5'}</div>
-                          </div>
-                          
-                          <div className="worker-location">
-                            <span className="icon">📍</span> {worker.barangay || 'Location not specified'}
-                          </div>
-                          
-                          <div className="top-rated-badge">
-                            <span className="icon">🏆</span> Top Rated
-                          </div>
-                          
-                          <div className="worker-info">
-                            <p className="worker-bio">{worker.bio || 'No bio available'}</p>
-                            <div className="worker-skills">
-                              {worker.skills?.map((skill, index) => (
-                                <span key={index} className="skill-tag">{skill}</span>
-                              )) || []}
-                            </div>
-                          </div>
-                          
-                          <div className="worker-actions">
-                            <button className="btn primary">Contact</button>
-                            <Link to={`/profile/${worker._id}`} className="btn secondary">View Profile</Link>
-                          </div>
+                      
+                      <div className="worker-info">
+                        <p>{worker.bio || 'No bio available'}</p>
+                        <div className="worker-skills">
+                          {worker.skills?.map((skill, index) => (
+                            <span key={index} className="skill-tag">{skill}</span>
+                          )) || []}
                         </div>
-                      ))
-                    ) : (
-                      <div className="no-data">
-                        <p>No recommended workers available at the moment</p>
-                        <Link to="/search-workers" className="btn primary">Search for Workers</Link>
                       </div>
-                    )}
+                      
+                      <div className="worker-actions">
+                        <button className="btn primary">Contact</button>
+                        <button className="btn secondary">View Profile</button>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="no-data">
+                    <p>No workers available at the moment</p>
                   </div>
-                </div>
-              </>
+                )}
+              </div>
             )}
           </>
         )}
@@ -747,11 +634,6 @@ function EmployerDashboard() {
         .action-btn.secondary:hover {
           background: #cbd5e0;
         }
-        
-        .action-buttons {
-          display: flex;
-          gap: 0.75rem;
-        }
 
         .tab-navigation {
           background: white;
@@ -856,59 +738,6 @@ function EmployerDashboard() {
           font-weight: bold;
           font-size: 0.9rem;
         }
-        
-        .worker-profile {
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-        }
-        
-        .worker-avatar {
-          width: 40px;
-          height: 40px;
-          border-radius: 50%;
-          object-fit: cover;
-        }
-        
-        .worker-avatar-placeholder {
-          width: 40px;
-          height: 40px;
-          border-radius: 50%;
-          background: #e2e8f0;
-          color: #4a5568;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-weight: bold;
-        }
-        
-        .worker-location {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          color: #4a5568;
-          font-size: 0.9rem;
-          margin-bottom: 0.75rem;
-        }
-        
-        .worker-bio {
-          margin-top: 0;
-          margin-bottom: 0.75rem;
-        }
-        
-        .top-rated-badge {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          color: #F59E0B;
-          font-weight: 600;
-          padding: 0.25rem 0.75rem;
-          background: #FFFBEB;
-          border-radius: 12px;
-          width: fit-content;
-          margin-bottom: 0.75rem;
-          font-size: 0.9rem;
-        }
 
         .job-meta, .worker-info {
           margin-bottom: 1rem;
@@ -942,11 +771,6 @@ function EmployerDashboard() {
         .status.closed {
           background: #fed7d7;
           color: #c53030;
-        }
-        
-        .status.completed {
-          background: #c6f6d5;
-          color: #2f855a;
         }
 
         .status.pending {
@@ -1013,15 +837,6 @@ function EmployerDashboard() {
 
         .btn.danger:hover {
           background: #c53030;
-        }
-        
-        .btn.success {
-          background: #38a169;
-          color: white;
-        }
-        
-        .btn.success:hover {
-          background: #2f855a;
         }
 
         .application-section {
@@ -1114,164 +929,9 @@ function EmployerDashboard() {
           100% { transform: rotate(360deg); }
         }
 
-        /* Search Form Styles */
-        .search-section {
-          margin-bottom: 2rem;
-        }
-        
-        .search-section h3 {
-          font-size: 1.25rem;
-          color: #2b6cb0;
-          margin-bottom: 1rem;
-        }
-        
-        .search-form {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-          gap: 1.5rem;
-          background: #f8fafc;
-          padding: 1.5rem;
-          border-radius: 8px;
-          border: 1px solid #e2e8f0;
-        }
-        
-        .search-input-group {
-          display: flex;
-          flex-direction: column;
-          gap: 0.5rem;
-        }
-        
-        .search-input-group label {
-          font-weight: 500;
-          color: #4a5568;
-          font-size: 0.9rem;
-        }
-        
-        .search-input-with-icon {
-          position: relative;
-        }
-        
-        .search-icon {
-          position: absolute;
-          left: 0.75rem;
-          top: 50%;
-          transform: translateY(-50%);
-          color: #718096;
-        }
-        
-        .search-input-group input,
-        .search-input-group select {
-          padding: 0.75rem;
-          border: 1px solid #cbd5e0;
-          border-radius: 6px;
-          font-size: 0.95rem;
-        }
-        
-        .search-input-with-icon input {
-          padding-left: 2.5rem;
-        }
-        
-        .skills-filter {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-          gap: 0.5rem;
-        }
-        
-        .skill-checkbox {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-        }
-        
-        .search-actions {
-          display: flex;
-          gap: 1rem;
-          align-items: flex-end;
-        }
-        
-        .search-btn {
-          padding: 0.75rem 1.5rem;
-          font-weight: 500;
-        }
-        
-        /* Pagination Styles */
-        .pagination {
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          margin-top: 2rem;
-          gap: 1rem;
-        }
-        
-        .pagination-btn {
-          padding: 0.5rem 1rem;
-          background: #e2e8f0;
-          border: none;
-          border-radius: 6px;
-          cursor: pointer;
-          color: #2d3748;
-          font-weight: 500;
-          transition: background 0.2s;
-        }
-        
-        .pagination-btn:hover:not(:disabled) {
-          background: #cbd5e0;
-        }
-        
-        .pagination-btn:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-        
-        .pagination-info {
-          color: #4a5568;
-          font-size: 0.9rem;
-        }
-        
-        .section-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 1.5rem;
-          flex-wrap: wrap;
-        }
-        
-        .dashboard-section {
-          background: white;
-          border-radius: 12px;
-          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-          padding: 1.5rem;
-          margin-bottom: 2rem;
-        }
-        
-        .tab-button {
-          background: #e2e8f0;
-          color: #2d3748;
-          border: none;
-          padding: 0.5rem 1rem;
-          border-radius: 6px;
-          cursor: pointer;
-          font-weight: 500;
-          transition: all 0.2s;
-        }
-        
-        .tab-button.active {
-          background: #2b6cb0;
-          color: white;
-        }
-        
         @media (max-width: 768px) {
           .dashboard-container {
             padding: 1rem;
-          }
-          
-          .search-form {
-            grid-template-columns: 1fr;
-          }
-          
-          .search-actions {
-            flex-direction: column;
-            gap: 0.5rem;
           }
 
           .stats-grid {

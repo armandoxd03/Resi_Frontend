@@ -3,8 +3,6 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useAlert } from '../context/AlertContext'
 import apiService from '../api'
-import GoalMeter from './GoalMeter'
-import GoalDetailsCard from './GoalDetailsCard'
 
 function Profile() {
   const [profile, setProfile] = useState(null)
@@ -33,16 +31,24 @@ function Profile() {
     deadline: ''
   })
   const [goals, setGoals] = useState([])
-  const [completedGoals, setCompletedGoals] = useState([])
   const [uploading, setUploading] = useState(false)
-  const [showGoalHistory, setShowGoalHistory] = useState(false)
   
   const { user, updateUser, verifyToken } = useAuth()
   const { success, error: showError } = useAlert()
 
   useEffect(() => {
     loadProfile()
-    loadGoals()
+    // Load sample goals for demonstration
+    setGoals([
+      { 
+        id: '1', 
+        title: 'Monthly Savings', 
+        targetAmount: 10000, 
+        currentAmount: 6550, 
+        deadline: '2025-12-31',
+        progress: 65.5
+      }
+    ])
   }, [])
 
   useEffect(() => {
@@ -84,64 +90,6 @@ function Profile() {
       setRatings(ratingsResponse.ratings || [])
     } catch (err) {
       console.error('Failed to load ratings:', err)
-    }
-  }
-  
-  const loadGoals = async () => {
-    try {
-      console.log('Loading goals...');
-      const response = await apiService.getMyGoals();
-      console.log('API response:', response);
-      
-      // Separate active and completed goals
-      const active = response.goals?.filter(goal => !goal.completed) || [];
-      const completed = response.goals?.filter(goal => goal.completed) || [];
-      
-      console.log('Separated goals:', { 
-        active: active.length, 
-        completed: completed.length 
-      });
-      
-      // Sort active goals by creation date (oldest first)
-      active.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-      
-      // Sort completed goals by completion date (newest first)
-      completed.sort((a, b) => new Date(b.completedAt || b.updatedAt) - new Date(a.completedAt || a.updatedAt));
-      
-      // Format goals data
-      const formattedActiveGoals = active.map(goal => ({
-        id: goal._id,
-        title: goal.description,
-        targetAmount: goal.targetAmount,
-        currentAmount: goal.progress,
-        deadline: goal.targetDate,
-        createdAt: goal.createdAt,
-        progress: goal.targetAmount > 0 ? (goal.progress / goal.targetAmount) * 100 : 0,
-        history: goal.history || [],
-        completed: false // Ensure active goals are marked as not completed
-      }));
-      
-      const formattedCompletedGoals = completed.map(goal => ({
-        id: goal._id,
-        title: goal.description,
-        targetAmount: goal.targetAmount,
-        currentAmount: goal.progress,
-        deadline: goal.targetDate,
-        createdAt: goal.createdAt,
-        completedAt: goal.completedAt,
-        progress: 100,
-        history: goal.history || [],
-        completed: true // Ensure completed goals are properly marked
-      }));
-      
-      setGoals(formattedActiveGoals);
-      setCompletedGoals(formattedCompletedGoals);
-      
-      console.log('Active goals:', formattedActiveGoals);
-      console.log('Completed goals:', formattedCompletedGoals);
-    } catch (err) {
-      console.error('Failed to load goals:', err);
-      showError('Failed to load your goals');
     }
   }
 
@@ -293,88 +241,51 @@ function Profile() {
     }))
   }
   
-  const handleSaveGoal = async (e) => {
+  const handleSaveGoal = (e) => {
     e.preventDefault()
     
-    try {
-      // Calculate progress percentage
-      const targetAmount = parseFloat(goalFormData.targetAmount)
-      const currentAmount = parseFloat(goalFormData.currentAmount)
-      const progress = targetAmount > 0 ? (currentAmount / targetAmount) * 100 : 0
-      
-      // Check if the goal is complete - ensure it's exactly 100% or greater
-      const isComplete = currentAmount >= targetAmount
-      
-      console.log('Goal completion check:', {
-        targetAmount, 
-        currentAmount, 
-        progress, 
-        isComplete
-      });
-      
-      const goalData = {
-        description: goalFormData.title,
+    // Calculate progress percentage
+    const targetAmount = parseFloat(goalFormData.targetAmount)
+    const currentAmount = parseFloat(goalFormData.currentAmount)
+    const progress = targetAmount > 0 ? (currentAmount / targetAmount) * 100 : 0
+    
+    if (currentGoal) {
+      // Update existing goal
+      setGoals(goals.map(g => 
+        g.id === currentGoal.id 
+          ? { 
+              ...g, 
+              title: goalFormData.title,
+              targetAmount,
+              currentAmount,
+              deadline: goalFormData.deadline,
+              progress
+            } 
+          : g
+      ))
+      success('Goal updated successfully!')
+    } else {
+      // Create new goal
+      const newGoal = {
+        id: Date.now().toString(),
+        title: goalFormData.title,
         targetAmount,
-        progress: currentAmount,
-        targetDate: goalFormData.deadline || undefined,
-        completed: isComplete, // Explicitly set completion status
-        completedAt: isComplete ? new Date().toISOString() : null
+        currentAmount,
+        deadline: goalFormData.deadline,
+        progress
       }
-      
-      // For goals at 100%, always ensure they're marked as completed
-      if (progress >= 100) {
-        goalData.completed = true;
-        goalData.completedAt = goalData.completedAt || new Date().toISOString();
-      }
-      
-      let result;
-      if (currentGoal) {
-        // Update existing goal
-        result = await apiService.updateGoal(currentGoal.id, goalData)
-        console.log('Goal update result:', result);
-        
-        if (isComplete) {
-          success('Goal completed! 🎉')
-        } else {
-          success('Goal updated successfully!')
-        }
-      } else {
-        // Create new goal
-        result = await apiService.createGoal(goalData)
-        console.log('Goal creation result:', result);
-        
-        if (isComplete) {
-          success('Goal created and completed! 🎉')
-        } else {
-          success('New goal created successfully!')
-        }
-      }
-      
-      // Refresh goals to ensure completed goals move to the correct section
-      await loadGoals()
-      setShowGoalModal(false)
-    } catch (err) {
-      console.error('Error saving goal:', err)
-      showError(err.message || 'Failed to save goal')
+      setGoals([...goals, newGoal])
+      success('New goal created successfully!')
     }
+    
+    setShowGoalModal(false)
   }
   
-  const handleDeleteGoal = async (goalId) => {
-    const goal = goals.find(g => g.id === goalId) || completedGoals.find(g => g.id === goalId);
-    
-    if (window.confirm(`Are you sure you want to delete this goal: "${goal?.title}"?\n\nThis action cannot be undone. All progress and history for this goal will be permanently deleted.`)) {
-      try {
-        await apiService.deleteGoal(goalId);
-        success('Goal has been permanently deleted');
-        
-        // Refresh goals
-        await loadGoals();
-        
-        if (showGoalModal) setShowGoalModal(false);
-      } catch (err) {
-        console.error('Error deleting goal:', err);
-        showError(err.message || 'Failed to delete goal');
-      }
+  const handleDeleteGoal = (goalId) => {
+    if (confirm('Are you sure you want to delete this goal?')) {
+      setGoals(goals.filter(goal => goal.id !== goalId))
+      success('Goal deleted successfully!')
+      if (showGoalModal) setShowGoalModal(false)
     }
   }
 
@@ -736,61 +647,60 @@ function Profile() {
         <div className="profile-section">
           <div className="section-header">
             <h2>Layunin Sa Pananalapi</h2>
-            <div className="goal-action-buttons">
-              <button 
-                className={`goal-tab-btn ${!showGoalHistory ? 'active' : ''}`} 
-                onClick={() => setShowGoalHistory(false)}
-              >
-                Active Goals
-              </button>
-              <button 
-                className={`goal-tab-btn ${showGoalHistory ? 'active' : ''}`} 
-                onClick={() => setShowGoalHistory(true)}
-              >
-                Completed Goals
-              </button>
-              <button className="add-goal-btn" onClick={() => handleOpenGoalModal()}>
-                <span>+</span> Add New Goal
-              </button>
-            </div>
+            <button className="add-goal-btn" onClick={() => handleOpenGoalModal()}>
+              <span>+</span> Add New Goal
+            </button>
           </div>
           
-          {!showGoalHistory ? (
-            // Active Goals Tab
-            goals.length > 0 ? (
-              <div className="goals-container">
-                {goals.map(goal => (
-                  <GoalDetailsCard 
-                    key={goal.id} 
-                    goal={goal} 
-                    onEdit={handleOpenGoalModal} 
-                    onDelete={handleDeleteGoal} 
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="no-goals-message">
-                No active financial goals. Click "Add New Goal" to create one.
-              </div>
-            )
+          {goals.length > 0 ? (
+            <div className="goals-container">
+              {goals.map(goal => (
+                <div className="goal-card" key={goal.id}>
+                  <div className="goal-header">
+                    <h3>{goal.title}</h3>
+                    <div className="goal-actions">
+                      <button 
+                        className="edit-goal-btn" 
+                        onClick={() => handleOpenGoalModal(goal)}
+                        title="Edit Goal"
+                      >
+                        ✎
+                      </button>
+                      <button 
+                        className="delete-goal-btn" 
+                        onClick={() => handleDeleteGoal(goal.id)}
+                        title="Delete Goal"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="goal-details">
+                    <div className="goal-amount">
+                      ₱{goal.currentAmount.toLocaleString()} / ₱{goal.targetAmount.toLocaleString()}
+                    </div>
+                    {goal.deadline && (
+                      <div className="goal-deadline">
+                        Target Date: {new Date(goal.deadline).toLocaleDateString()}
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="profile-goal-bar">
+                    <div 
+                      className="profile-goal-bar-inner" 
+                      style={{ width: `${Math.min(100, goal.progress)}%` }}
+                    ></div>
+                  </div>
+                  <div className="profile-goal-percent">{goal.progress.toFixed(1)}%</div>
+                </div>
+              ))}
+            </div>
           ) : (
-            // Completed Goals Tab
-            completedGoals.length > 0 ? (
-              <div className="goals-container">
-                {completedGoals.map(goal => (
-                  <GoalDetailsCard 
-                    key={goal.id} 
-                    goal={goal} 
-                    onEdit={() => {}} 
-                    onDelete={handleDeleteGoal} 
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="no-goals-message">
-                You don't have any completed goals yet.
-              </div>
-            )
+            <div className="no-goals-message">
+              No financial goals set yet. Click "Add New Goal" to create one.
+            </div>
           )}
         </div>
 
@@ -1338,114 +1248,6 @@ function Profile() {
           padding: 1rem;
           border: 1px solid #e2e8f0;
           box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-        .goal-card.completed {
-          background: #f0fff4;
-          border: 1px solid #c6f6d5;
-        }
-        .goal-action-buttons {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-        }
-        .goal-tab-btn {
-          background: #e2e8f0;
-          color: #4a5568;
-          border: none;
-          border-radius: 6px;
-          padding: 0.4rem 0.8rem;
-          font-size: 0.85rem;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-        .goal-tab-btn.active {
-          background: #2b6cb0;
-          color: white;
-        }
-        .goal-status-tag {
-          background: #38a169;
-          color: white;
-          border-radius: 12px;
-          padding: 0.2rem 0.6rem;
-          font-size: 0.8rem;
-          font-weight: 500;
-        }
-        .goal-completion-date {
-          font-size: 0.9rem;
-          color: #38a169;
-          font-weight: 500;
-          margin-top: 0.3rem;
-        }
-        .profile-goal-bar-inner.completed {
-          background: #38a169;
-        }
-        .goal-history-section {
-          margin-top: 1rem;
-          border-top: 1px solid #c6f6d5;
-          padding-top: 0.8rem;
-        }
-        .goal-history-header {
-          font-weight: 600;
-          color: #38a169;
-          font-size: 0.9rem;
-          margin-bottom: 0.5rem;
-        }
-        .history-items {
-          display: flex;
-          flex-direction: column;
-          gap: 0.4rem;
-        }
-        .history-item {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          background: white;
-          border-radius: 6px;
-          padding: 0.4rem 0.6rem;
-          font-size: 0.85rem;
-        }
-        .history-amount {
-          font-weight: 600;
-          color: #38a169;
-        }
-        .history-source {
-          color: #4a5568;
-        }
-        .history-date {
-          color: #718096;
-          font-size: 0.8rem;
-        }
-        .recent-contributions {
-          margin-top: 1rem;
-          border-top: 1px solid #e2e8f0;
-          padding-top: 0.8rem;
-        }
-        .recent-contributions-header {
-          font-weight: 600;
-          color: #4a5568;
-          font-size: 0.9rem;
-          margin-bottom: 0.5rem;
-        }
-        .contribution-item {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          background: white;
-          border-radius: 6px;
-          padding: 0.4rem 0.6rem;
-          font-size: 0.85rem;
-          margin-bottom: 0.4rem;
-        }
-        .contribution-amount {
-          font-weight: 600;
-          color: #38a169;
-        }
-        .contribution-source {
-          color: #4a5568;
-        }
-        .contribution-date {
-          color: #718096;
-          font-size: 0.8rem;
         }
         .goal-header {
           display: flex;
