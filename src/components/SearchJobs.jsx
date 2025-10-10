@@ -4,7 +4,7 @@ import { AuthContext } from '../context/AuthContext'
 import { AlertContext } from '../context/AlertContext'
 
 // Use environment variable for API base URL
-const API_BASE = import.meta.env.VITE_API_URL || 'https://resilinked-9mf9.vercel.app/api'
+const API_BASE = import.meta.env.VITE_API_URL || 'https://resi-backend-1.onrender.com/api'
 
 function SearchJobs() {
   const [searchQuery, setSearchQuery] = useState({

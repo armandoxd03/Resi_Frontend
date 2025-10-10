@@ -509,7 +509,7 @@ function AdminDashboard() {
       
       if (searchQuery) params.append('q', searchQuery)
 
-      const apiBaseUrl = import.meta.env.VITE_API_URL || 'https://resilinked-9mf9.vercel.app/api'
+      const apiBaseUrl = import.meta.env.VITE_API_URL || 'https://resi-backend-1.onrender.com/api'
       const response = await fetch(`${apiBaseUrl}/admin/users?${params}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
@@ -624,7 +624,7 @@ function AdminDashboard() {
   const viewUser = async (userId) => {
     try {
       const token = localStorage.getItem('token')
-      const apiBaseUrl = import.meta.env.VITE_API_URL || 'https://resilinked-9mf9.vercel.app/api'
+      const apiBaseUrl = import.meta.env.VITE_API_URL || 'https://resi-backend-1.onrender.com/api'
       const response = await fetch(`${apiBaseUrl}/admin/users/${userId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
@@ -644,7 +644,7 @@ function AdminDashboard() {
   const editUser = async (userId) => {
     try {
       const token = localStorage.getItem('token')
-      const apiBaseUrl = import.meta.env.VITE_API_URL || 'https://resilinked-9mf9.vercel.app/api'
+      const apiBaseUrl = import.meta.env.VITE_API_URL || 'https://resi-backend-1.onrender.com/api'
       const response = await fetch(`${apiBaseUrl}/admin/users/${userId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
@@ -664,7 +664,7 @@ function AdminDashboard() {
   const saveUser = async (userId, userData) => {
     try {
       const token = localStorage.getItem('token')
-      const apiBaseUrl = import.meta.env.VITE_API_URL || 'https://resilinked-9mf9.vercel.app/api'
+      const apiBaseUrl = import.meta.env.VITE_API_URL || 'https://resi-backend-1.onrender.com/api'
       
       console.log('Updating user with data:', userData)
       
@@ -706,7 +706,7 @@ function AdminDashboard() {
     if (window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
       try {
         const token = localStorage.getItem('token')
-        const apiBaseUrl = import.meta.env.VITE_API_URL || 'https://resilinked-9mf9.vercel.app/api'
+        const apiBaseUrl = import.meta.env.VITE_API_URL || 'https://resi-backend-1.onrender.com/api'
         
         const response = await fetch(`${apiBaseUrl}/admin/users/${userId}`, {
           method: 'DELETE',
