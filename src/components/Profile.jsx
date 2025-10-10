@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useAlert } from '../context/AlertContext'
 import apiService from '../api'
+import GoalMeter from './GoalMeter'
+import GoalDetailsCard from './GoalDetailsCard'
 
 function Profile() {
   const [profile, setProfile] = useState(null)
@@ -13,21 +15,34 @@ function Profile() {
   const [editFormData, setEditFormData] = useState({
     firstName: '',
     lastName: '',
+    bio: '',
+    gender: '',
+    userType: '',
     email: '',
     mobileNo: '',
     address: '',
     barangay: '',
-    gender: '',
-    bio: '',
     skills: []
   })
+  const [showGoalModal, setShowGoalModal] = useState(false)
+  const [currentGoal, setCurrentGoal] = useState(null)
+  const [goalFormData, setGoalFormData] = useState({
+    title: '',
+    targetAmount: '',
+    currentAmount: '',
+    deadline: ''
+  })
+  const [goals, setGoals] = useState([])
+  const [completedGoals, setCompletedGoals] = useState([])
   const [uploading, setUploading] = useState(false)
+  const [showGoalHistory, setShowGoalHistory] = useState(false)
   
   const { user, updateUser, verifyToken } = useAuth()
   const { success, error: showError } = useAlert()
 
   useEffect(() => {
     loadProfile()
+    loadGoals()
   }, [])
 
   useEffect(() => {
@@ -45,12 +60,13 @@ function Profile() {
       setEditFormData({
         firstName: data.user.firstName || '',
         lastName: data.user.lastName || '',
+        bio: data.user.bio || '',
+        gender: data.user.gender || '',
+        userType: data.user.userType || 'employee',
         email: data.user.email || '',
         mobileNo: data.user.mobileNo || '',
         address: data.user.address || '',
         barangay: data.user.barangay || '',
-        gender: data.user.gender || '',
-        bio: data.user.bio || '',
         skills: data.user.skills || []
       });
     } catch (err) {
@@ -68,6 +84,64 @@ function Profile() {
       setRatings(ratingsResponse.ratings || [])
     } catch (err) {
       console.error('Failed to load ratings:', err)
+    }
+  }
+  
+  const loadGoals = async () => {
+    try {
+      console.log('Loading goals...');
+      const response = await apiService.getMyGoals();
+      console.log('API response:', response);
+      
+      // Separate active and completed goals
+      const active = response.goals?.filter(goal => !goal.completed) || [];
+      const completed = response.goals?.filter(goal => goal.completed) || [];
+      
+      console.log('Separated goals:', { 
+        active: active.length, 
+        completed: completed.length 
+      });
+      
+      // Sort active goals by creation date (oldest first)
+      active.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+      
+      // Sort completed goals by completion date (newest first)
+      completed.sort((a, b) => new Date(b.completedAt || b.updatedAt) - new Date(a.completedAt || a.updatedAt));
+      
+      // Format goals data
+      const formattedActiveGoals = active.map(goal => ({
+        id: goal._id,
+        title: goal.description,
+        targetAmount: goal.targetAmount,
+        currentAmount: goal.progress,
+        deadline: goal.targetDate,
+        createdAt: goal.createdAt,
+        progress: goal.targetAmount > 0 ? (goal.progress / goal.targetAmount) * 100 : 0,
+        history: goal.history || [],
+        completed: false // Ensure active goals are marked as not completed
+      }));
+      
+      const formattedCompletedGoals = completed.map(goal => ({
+        id: goal._id,
+        title: goal.description,
+        targetAmount: goal.targetAmount,
+        currentAmount: goal.progress,
+        deadline: goal.targetDate,
+        createdAt: goal.createdAt,
+        completedAt: goal.completedAt,
+        progress: 100,
+        history: goal.history || [],
+        completed: true // Ensure completed goals are properly marked
+      }));
+      
+      setGoals(formattedActiveGoals);
+      setCompletedGoals(formattedCompletedGoals);
+      
+      console.log('Active goals:', formattedActiveGoals);
+      console.log('Completed goals:', formattedCompletedGoals);
+    } catch (err) {
+      console.error('Failed to load goals:', err);
+      showError('Failed to load your goals');
     }
   }
 
@@ -126,12 +200,13 @@ function Profile() {
     setEditFormData({
       firstName: profile?.firstName || '',
       lastName: profile?.lastName || '',
+      bio: profile?.bio || '',
+      gender: profile?.gender || '',
+      userType: profile?.userType || 'employee',
       email: profile?.email || '',
       mobileNo: profile?.mobileNo || '',
       address: profile?.address || '',
       barangay: profile?.barangay || '',
-      gender: profile?.gender || '',
-      bio: profile?.bio || '',
       skills: profile?.skills || []
     })
     setShowEditModal(true)
@@ -182,6 +257,123 @@ function Profile() {
         showError('Authentication issue. Please try logging in again.')
       } else {
         showError('Failed to update profile. Please try again.')
+      }
+    }
+  }
+  
+  // Goal management functions
+  const handleOpenGoalModal = (goal = null) => {
+    if (goal) {
+      // Edit existing goal
+      setCurrentGoal(goal)
+      setGoalFormData({
+        title: goal.title,
+        targetAmount: goal.targetAmount,
+        currentAmount: goal.currentAmount,
+        deadline: goal.deadline
+      })
+    } else {
+      // New goal
+      setCurrentGoal(null)
+      setGoalFormData({
+        title: '',
+        targetAmount: '',
+        currentAmount: '0',
+        deadline: ''
+      })
+    }
+    setShowGoalModal(true)
+  }
+  
+  const handleGoalInputChange = (e) => {
+    const { name, value } = e.target
+    setGoalFormData(prev => ({
+      ...prev,
+      [name]: value
+    }))
+  }
+  
+  const handleSaveGoal = async (e) => {
+    e.preventDefault()
+    
+    try {
+      // Calculate progress percentage
+      const targetAmount = parseFloat(goalFormData.targetAmount)
+      const currentAmount = parseFloat(goalFormData.currentAmount)
+      const progress = targetAmount > 0 ? (currentAmount / targetAmount) * 100 : 0
+      
+      // Check if the goal is complete - ensure it's exactly 100% or greater
+      const isComplete = currentAmount >= targetAmount
+      
+      console.log('Goal completion check:', {
+        targetAmount, 
+        currentAmount, 
+        progress, 
+        isComplete
+      });
+      
+      const goalData = {
+        description: goalFormData.title,
+        targetAmount,
+        progress: currentAmount,
+        targetDate: goalFormData.deadline || undefined,
+        completed: isComplete, // Explicitly set completion status
+        completedAt: isComplete ? new Date().toISOString() : null
+      }
+      
+      // For goals at 100%, always ensure they're marked as completed
+      if (progress >= 100) {
+        goalData.completed = true;
+        goalData.completedAt = goalData.completedAt || new Date().toISOString();
+      }
+      
+      let result;
+      if (currentGoal) {
+        // Update existing goal
+        result = await apiService.updateGoal(currentGoal.id, goalData)
+        console.log('Goal update result:', result);
+        
+        if (isComplete) {
+          success('Goal completed! 🎉')
+        } else {
+          success('Goal updated successfully!')
+        }
+      } else {
+        // Create new goal
+        result = await apiService.createGoal(goalData)
+        console.log('Goal creation result:', result);
+        
+        if (isComplete) {
+          success('Goal created and completed! 🎉')
+        } else {
+          success('New goal created successfully!')
+        }
+      }
+      
+      // Refresh goals to ensure completed goals move to the correct section
+      await loadGoals()
+      setShowGoalModal(false)
+    } catch (err) {
+      console.error('Error saving goal:', err)
+      showError(err.message || 'Failed to save goal')
+    }
+  }
+  
+  const handleDeleteGoal = async (goalId) => {
+    const goal = goals.find(g => g.id === goalId) || completedGoals.find(g => g.id === goalId);
+    
+    if (window.confirm(`Are you sure you want to delete this goal: "${goal?.title}"?\n\nThis action cannot be undone. All progress and history for this goal will be permanently deleted.`)) {
+      try {
+        await apiService.deleteGoal(goalId);
+        success('Goal has been permanently deleted');
+        
+        // Refresh goals
+        await loadGoals();
+        
+        if (showGoalModal) setShowGoalModal(false);
+      } catch (err) {
+        console.error('Error deleting goal:', err);
+        showError(err.message || 'Failed to delete goal');
       }
     }
   }
@@ -270,6 +462,112 @@ function Profile() {
         }
         .edit-form textarea {
           resize: vertical;
+        }
+        .form-helper-text {
+          color: #64748b;
+          font-size: 0.9rem;
+          margin-top: 0.5rem;
+          font-style: italic;
+        }
+        .skills-section {
+          margin-top: 0.5rem;
+        }
+        .skills-input-container {
+          display: flex;
+          gap: 0.5rem;
+          margin-bottom: 1rem;
+        }
+        .skills-input-container input {
+          flex: 1;
+          padding: 0.75rem 1rem;
+          border: 1.5px solid #e2e8f0;
+          border-radius: 8px;
+          font-size: 1rem;
+        }
+        .add-skill-btn {
+          padding: 0.75rem 1rem;
+          background: #38a169;
+          color: white;
+          border: none;
+          border-radius: 8px;
+          cursor: pointer;
+          font-weight: 500;
+          transition: background 0.2s;
+        }
+        .add-skill-btn:hover {
+          background: #2f855a;
+        }
+        .common-skills {
+          margin-bottom: 1rem;
+        }
+        .common-skills label {
+          display: block;
+          font-size: 0.9rem;
+          margin-bottom: 0.5rem;
+          color: #4a5568;
+        }
+        .common-skills-options {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.5rem;
+        }
+        .common-skill-option {
+          background: #f1f5f9;
+          border: 1px solid #e2e8f0;
+          color: #4a5568;
+          padding: 0.4rem 0.8rem;
+          border-radius: 16px;
+          font-size: 0.85rem;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .common-skill-option:hover {
+          background: #e2e8f0;
+        }
+        .common-skill-option.selected {
+          background: #e9f7ef;
+          border-color: #38a169;
+          color: #2f855a;
+        }
+        .skills-container {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.5rem;
+          margin-top: 1rem;
+          padding: 1rem;
+          background: #f8f9fa;
+          border-radius: 8px;
+          min-height: 50px;
+        }
+        .skill-tag {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.25rem;
+          background: #2b6cb0;
+          color: white;
+          padding: 0.5rem 0.75rem;
+          border-radius: 16px;
+          font-size: 0.9rem;
+          font-weight: 500;
+        }
+        .remove-skill {
+          background: none;
+          border: none;
+          color: white;
+          cursor: pointer;
+          font-size: 0.9rem;
+          padding: 0;
+          margin-left: 0.25rem;
+          width: 16px;
+          height: 16px;
+          border-radius: 50%;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          line-height: 1;
+        }
+        .remove-skill:hover {
+          background: rgba(255, 255, 255, 0.2);
         }
         .skills-checkbox-group {
           display: grid;
@@ -399,6 +697,11 @@ function Profile() {
             <div className="profile-barangay">
               {profile?.barangay} <span className="verified-badge-lg">Barangay-Verified</span>
             </div>
+            <div className="profile-user-type">
+              {profile?.userType === 'both' ? 'Employee & Employer' : 
+               profile?.userType === 'employee' ? 'Employee' : 
+               profile?.userType === 'employer' ? 'Employer' : 'User'}
+            </div>
           </div>
           <button className="edit-profile-btn" onClick={handleEditProfile}>Edit Profile</button>
         </div>
@@ -431,12 +734,64 @@ function Profile() {
         </div>
 
         <div className="profile-section">
-          <h2>Layunin Sa Pananalapi</h2>
-          <div className="profile-goal-label"><b>65,560/10,000</b></div>
-          <div className="profile-goal-bar">
-            <div className="profile-goal-bar-inner" style={{ width: '65%' }}></div>
+          <div className="section-header">
+            <h2>Layunin Sa Pananalapi</h2>
+            <div className="goal-action-buttons">
+              <button 
+                className={`goal-tab-btn ${!showGoalHistory ? 'active' : ''}`} 
+                onClick={() => setShowGoalHistory(false)}
+              >
+                Active Goals
+              </button>
+              <button 
+                className={`goal-tab-btn ${showGoalHistory ? 'active' : ''}`} 
+                onClick={() => setShowGoalHistory(true)}
+              >
+                Completed Goals
+              </button>
+              <button className="add-goal-btn" onClick={() => handleOpenGoalModal()}>
+                <span>+</span> Add New Goal
+              </button>
+            </div>
           </div>
-          <div className="profile-goal-percent">65%</div>
+          
+          {!showGoalHistory ? (
+            // Active Goals Tab
+            goals.length > 0 ? (
+              <div className="goals-container">
+                {goals.map(goal => (
+                  <GoalDetailsCard 
+                    key={goal.id} 
+                    goal={goal} 
+                    onEdit={handleOpenGoalModal} 
+                    onDelete={handleDeleteGoal} 
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="no-goals-message">
+                No active financial goals. Click "Add New Goal" to create one.
+              </div>
+            )
+          ) : (
+            // Completed Goals Tab
+            completedGoals.length > 0 ? (
+              <div className="goals-container">
+                {completedGoals.map(goal => (
+                  <GoalDetailsCard 
+                    key={goal.id} 
+                    goal={goal} 
+                    onEdit={() => {}} 
+                    onDelete={handleDeleteGoal} 
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="no-goals-message">
+                You don't have any completed goals yet.
+              </div>
+            )
+          )}
         </div>
 
         <div className="profile-section">
@@ -471,7 +826,7 @@ function Profile() {
           </div>
         </div>
 
-        {/* Edit Profile Modal (unchanged) */}
+        {/* Edit Profile Modal */}
         {showEditModal && ( 
           <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
             <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -504,6 +859,115 @@ function Profile() {
                       required
                     />
                   </div>
+                </div>
+                <div className="form-group">
+                  <label htmlFor="bio">Bio</label>
+                  <textarea
+                    id="bio"
+                    name="bio"
+                    rows="3"
+                    value={editFormData.bio}
+                    onChange={handleInputChange}
+                  />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="gender">Gender</label>
+                  <select
+                    id="gender"
+                    name="gender"
+                    value={editFormData.gender}
+                    onChange={handleInputChange}
+                  >
+                    <option value="">Select Gender</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label htmlFor="skills">Skills</label>
+                  <div className="skills-section">
+                    <div className="skills-input-container">
+                      <input
+                        type="text"
+                        id="skillInput"
+                        placeholder="Type a skill and press Enter"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && e.target.value.trim()) {
+                            e.preventDefault();
+                            handleSkillToggle(e.target.value.trim());
+                            e.target.value = '';
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="add-skill-btn"
+                        onClick={(e) => {
+                          const input = document.getElementById('skillInput');
+                          if (input.value.trim()) {
+                            handleSkillToggle(input.value.trim());
+                            input.value = '';
+                          }
+                        }}
+                      >
+                        Add
+                      </button>
+                    </div>
+                    
+                    <div className="common-skills">
+                      <label>Common Skills:</label>
+                      <div className="common-skills-options">
+                        {['Plumbing', 'Carpentry', 'Cleaning', 'Electrical', 'Painting', 'Gardening', 
+                          'Cooking', 'Driving', 'Babysitting', 'Tutoring', 'IT Support', 'Customer Service'].map(skill => (
+                          <button 
+                            key={skill}
+                            type="button" 
+                            className={`common-skill-option ${editFormData.skills.includes(skill) ? 'selected' : ''}`}
+                            onClick={() => !editFormData.skills.includes(skill) && handleSkillToggle(skill)}
+                          >
+                            {skill}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    <small className="form-helper-text">Add skills to showcase your expertise. Click on common skills or type your own.</small>
+                  
+                    {editFormData.skills.length > 0 && (
+                      <div className="skills-container">
+                        {editFormData.skills.map((skill, index) => (
+                          <span key={index} className="skill-tag">
+                            {skill}
+                            <button
+                              type="button"
+                              className="remove-skill"
+                              onClick={() => handleSkillToggle(skill)}
+                              title="Remove skill"
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                
+                </div>
+                <div className="form-group">
+                  <label htmlFor="userType">Account Type</label>
+                  <select
+                    id="userType"
+                    name="userType"
+                    value={editFormData.userType}
+                    onChange={handleInputChange}
+                    required
+                  >
+                    <option value="employee">Employee</option>
+                    <option value="employer">Employer</option>
+                    <option value="both">Both</option>
+                  </select>
+                  <small className="form-helper-text">Choose your account type: Employee, Employer or Both</small>
                 </div>
                 <div className="form-group">
                   <label htmlFor="email">Email</label>
@@ -547,31 +1011,8 @@ function Profile() {
                       onChange={handleInputChange}
                     />
                   </div>
-                  <div className="form-group">
-                    <label htmlFor="gender">Gender</label>
-                    <select
-                      id="gender"
-                      name="gender"
-                      value={editFormData.gender}
-                      onChange={handleInputChange}
-                    >
-                      <option value="">Select Gender</option>
-                      <option value="male">Male</option>
-                      <option value="female">Female</option>
-                      <option value="other">Other</option>
-                    </select>
-                  </div>
                 </div>
-                <div className="form-group">
-                  <label htmlFor="bio">Bio</label>
-                  <textarea
-                    id="bio"
-                    name="bio"
-                    rows="3"
-                    value={editFormData.bio}
-                    onChange={handleInputChange}
-                  />
-                </div>
+                {/* Bio and Gender fields moved above userType field */}
                 {/* ...other form fields... */}
                 <div className="modal-actions">
                   <button type="button" onClick={() => setShowEditModal(false)} className="btn btn-secondary">
@@ -579,6 +1020,90 @@ function Profile() {
                   </button>
                   <button type="submit" className="btn btn-primary">
                     Save Changes
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Goal Modal */}
+        {showGoalModal && (
+          <div className="modal-overlay" onClick={() => setShowGoalModal(false)}>
+            <div className="modal-content goal-modal" onClick={(e) => e.stopPropagation()}>
+              <button onClick={() => setShowGoalModal(false)} className="close">×</button>
+              <div className="modal-header">
+                <h3>{currentGoal ? 'Edit Goal' : 'Add New Goal'}</h3>
+              </div>
+              <form onSubmit={handleSaveGoal} className="edit-form">
+                <div className="form-group">
+                  <label htmlFor="title">Goal Title</label>
+                  <input
+                    type="text"
+                    id="title"
+                    name="title"
+                    value={goalFormData.title}
+                    onChange={handleGoalInputChange}
+                    placeholder="e.g., Monthly Savings, New Car, etc."
+                    required
+                  />
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label htmlFor="targetAmount">Target Amount (₱)</label>
+                    <input
+                      type="number"
+                      id="targetAmount"
+                      name="targetAmount"
+                      value={goalFormData.targetAmount}
+                      onChange={handleGoalInputChange}
+                      placeholder="e.g., 10000"
+                      min="1"
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="currentAmount">Current Amount (₱)</label>
+                    <input
+                      type="number"
+                      id="currentAmount"
+                      name="currentAmount"
+                      value={goalFormData.currentAmount}
+                      onChange={handleGoalInputChange}
+                      placeholder="e.g., 5000"
+                      min="0"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="deadline">Target Date (Optional)</label>
+                  <input
+                    type="date"
+                    id="deadline"
+                    name="deadline"
+                    value={goalFormData.deadline}
+                    onChange={handleGoalInputChange}
+                  />
+                </div>
+
+                <div className="modal-actions">
+                  {currentGoal && (
+                    <button 
+                      type="button" 
+                      className="btn btn-danger"
+                      onClick={() => handleDeleteGoal(currentGoal.id)}
+                    >
+                      Delete Goal
+                    </button>
+                  )}
+                  <button type="button" onClick={() => setShowGoalModal(false)} className="btn btn-secondary">
+                    Cancel
+                  </button>
+                  <button type="submit" className="btn btn-primary">
+                    {currentGoal ? 'Update Goal' : 'Create Goal'}
                   </button>
                 </div>
               </form>
@@ -736,6 +1261,16 @@ function Profile() {
           font-size: 1.1rem;
           margin-top: 0.2rem;
         }
+        .profile-user-type {
+          color: #4a5568;
+          font-size: 1rem;
+          margin-top: 0.5rem;
+          font-weight: 500;
+          background: #f1f5f9;
+          padding: 0.3rem 1rem;
+          border-radius: 16px;
+          display: inline-block;
+        }
         .verified-badge-lg {
           color: #38a169;
           font-weight: 600;
@@ -765,6 +1300,217 @@ function Profile() {
           font-weight: 700;
           color: #22223b;
           margin-bottom: 0.7rem;
+        }
+        .section-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 1rem;
+        }
+        .add-goal-btn {
+          background: #38a169;
+          color: white;
+          border: none;
+          border-radius: 20px;
+          padding: 0.35rem 0.8rem;
+          font-size: 0.9rem;
+          display: flex;
+          align-items: center;
+          gap: 0.3rem;
+          cursor: pointer;
+          transition: background 0.2s;
+        }
+        .add-goal-btn:hover {
+          background: #2f855a;
+        }
+        .add-goal-btn span {
+          font-size: 1.2rem;
+          font-weight: bold;
+        }
+        .goals-container {
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+        }
+        .goal-card {
+          background: #f8fafc;
+          border-radius: 12px;
+          padding: 1rem;
+          border: 1px solid #e2e8f0;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .goal-card.completed {
+          background: #f0fff4;
+          border: 1px solid #c6f6d5;
+        }
+        .goal-action-buttons {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
+        .goal-tab-btn {
+          background: #e2e8f0;
+          color: #4a5568;
+          border: none;
+          border-radius: 6px;
+          padding: 0.4rem 0.8rem;
+          font-size: 0.85rem;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .goal-tab-btn.active {
+          background: #2b6cb0;
+          color: white;
+        }
+        .goal-status-tag {
+          background: #38a169;
+          color: white;
+          border-radius: 12px;
+          padding: 0.2rem 0.6rem;
+          font-size: 0.8rem;
+          font-weight: 500;
+        }
+        .goal-completion-date {
+          font-size: 0.9rem;
+          color: #38a169;
+          font-weight: 500;
+          margin-top: 0.3rem;
+        }
+        .profile-goal-bar-inner.completed {
+          background: #38a169;
+        }
+        .goal-history-section {
+          margin-top: 1rem;
+          border-top: 1px solid #c6f6d5;
+          padding-top: 0.8rem;
+        }
+        .goal-history-header {
+          font-weight: 600;
+          color: #38a169;
+          font-size: 0.9rem;
+          margin-bottom: 0.5rem;
+        }
+        .history-items {
+          display: flex;
+          flex-direction: column;
+          gap: 0.4rem;
+        }
+        .history-item {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          background: white;
+          border-radius: 6px;
+          padding: 0.4rem 0.6rem;
+          font-size: 0.85rem;
+        }
+        .history-amount {
+          font-weight: 600;
+          color: #38a169;
+        }
+        .history-source {
+          color: #4a5568;
+        }
+        .history-date {
+          color: #718096;
+          font-size: 0.8rem;
+        }
+        .recent-contributions {
+          margin-top: 1rem;
+          border-top: 1px solid #e2e8f0;
+          padding-top: 0.8rem;
+        }
+        .recent-contributions-header {
+          font-weight: 600;
+          color: #4a5568;
+          font-size: 0.9rem;
+          margin-bottom: 0.5rem;
+        }
+        .contribution-item {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          background: white;
+          border-radius: 6px;
+          padding: 0.4rem 0.6rem;
+          font-size: 0.85rem;
+          margin-bottom: 0.4rem;
+        }
+        .contribution-amount {
+          font-weight: 600;
+          color: #38a169;
+        }
+        .contribution-source {
+          color: #4a5568;
+        }
+        .contribution-date {
+          color: #718096;
+          font-size: 0.8rem;
+        }
+        .goal-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 0.5rem;
+        }
+        .goal-header h3 {
+          font-size: 1.1rem;
+          font-weight: 600;
+          color: #22314a;
+          margin: 0;
+        }
+        .goal-actions {
+          display: flex;
+          gap: 0.5rem;
+        }
+        .edit-goal-btn, .delete-goal-btn {
+          background: none;
+          border: none;
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          color: #64748b;
+          transition: all 0.2s;
+        }
+        .edit-goal-btn:hover {
+          background: #e2e8f0;
+          color: #2b6cb0;
+        }
+        .delete-goal-btn:hover {
+          background: #fee2e2;
+          color: #e53e3e;
+        }
+        .goal-details {
+          margin-bottom: 0.8rem;
+        }
+        .goal-amount {
+          font-size: 1.1rem;
+          font-weight: 600;
+          color: #22314a;
+        }
+        .goal-deadline {
+          font-size: 0.9rem;
+          color: #64748b;
+          margin-top: 0.3rem;
+        }
+        .no-goals-message {
+          color: #64748b;
+          font-style: italic;
+          padding: 1rem;
+          text-align: center;
+          background: #f8fafc;
+          border-radius: 8px;
+        }
+        .btn-danger {
+          background: #e53e3e;
+          color: white;
+        }
+        .btn-danger:hover {
+          background: #c53030;
         }
         .profile-skills {
           display: flex;
