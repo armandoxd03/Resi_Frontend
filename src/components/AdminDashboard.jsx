@@ -509,7 +509,8 @@ function AdminDashboard() {
       
       if (searchQuery) params.append('q', searchQuery)
 
-  const response = await fetch(`${import.meta.env.VITE_API_URL}/admin/users?${params}`, {
+      const apiBaseUrl = import.meta.env.VITE_API_URL || 'https://resilinked-9mf9.vercel.app/api'
+      const response = await fetch(`${apiBaseUrl}/admin/users?${params}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       
@@ -623,7 +624,8 @@ function AdminDashboard() {
   const viewUser = async (userId) => {
     try {
       const token = localStorage.getItem('token')
-    const response = await fetch(`${import.meta.env.VITE_API_URL}/admin/users/${userId}`, {
+      const apiBaseUrl = import.meta.env.VITE_API_URL || 'https://resilinked-9mf9.vercel.app/api'
+      const response = await fetch(`${apiBaseUrl}/admin/users/${userId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       
@@ -642,7 +644,8 @@ function AdminDashboard() {
   const editUser = async (userId) => {
     try {
       const token = localStorage.getItem('token')
-    const response = await fetch(`${import.meta.env.VITE_API_URL}/admin/users/${userId}`, {
+      const apiBaseUrl = import.meta.env.VITE_API_URL || 'https://resilinked-9mf9.vercel.app/api'
+      const response = await fetch(`${apiBaseUrl}/admin/users/${userId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       
@@ -661,7 +664,11 @@ function AdminDashboard() {
   const saveUser = async (userId, userData) => {
     try {
       const token = localStorage.getItem('token')
-  const response = await fetch(`${import.meta.env.VITE_API_URL}/admin/users/${userId}`, {
+      const apiBaseUrl = import.meta.env.VITE_API_URL || 'https://resilinked-9mf9.vercel.app/api'
+      
+      console.log('Updating user with data:', userData)
+      
+      const response = await fetch(`${apiBaseUrl}/admin/users/${userId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -671,12 +678,23 @@ function AdminDashboard() {
       })
       
       if (response.ok) {
+        const data = await response.json()
+        console.log('User update response:', data)
         success('User updated successfully')
         setUserModal({ show: false, user: null, type: 'view' })
+        
+        // Update users list immediately for better UX
+        setUsers(prevUsers => prevUsers.map(user => 
+          user._id === userId ? {...user, ...userData} : user
+        ))
+        
+        // Then refresh from server
         await loadUsers(pagination.page, 10)
         await loadDashboardStats()
       } else {
-        showError('Failed to update user')
+        const errorData = await response.json()
+        console.error('API error response:', errorData)
+        showError(`Failed to update user: ${errorData.message || 'Unknown error'}`)
       }
     } catch (error) {
       console.error('Error updating user:', error)
@@ -688,47 +706,149 @@ function AdminDashboard() {
     if (window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
       try {
         const token = localStorage.getItem('token')
-  const response = await fetch(`${import.meta.env.VITE_API_URL}/admin/users/${userId}`, {
+        const apiBaseUrl = import.meta.env.VITE_API_URL || 'https://resilinked-9mf9.vercel.app/api'
+        
+        const response = await fetch(`${apiBaseUrl}/admin/users/${userId}`, {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${token}` }
         })
         
         if (response.ok) {
           success('User deleted successfully')
+          
+          // Update the users list immediately by removing the deleted user
+          setUsers(prevUsers => prevUsers.filter(user => user._id !== userId))
+          
+          // Then refresh from server
           await loadUsers(pagination.page, 10)
           await loadDashboardStats()
         } else {
-          showError('Failed to delete user')
+          // Handle error response
+          try {
+            const contentType = response.headers.get("content-type");
+            if (contentType && contentType.includes("application/json")) {
+              const errorData = await response.json();
+              showError(`Failed to delete user: ${errorData.message || 'Unknown error'}`);
+            } else {
+              showError(`Failed to delete user (HTTP ${response.status})`);
+            }
+          } catch (parseError) {
+            showError('Failed to delete user');
+          }
         }
       } catch (error) {
         console.error('Error deleting user:', error)
-        showError('Error deleting user')
+        showError('Error deleting user: Network error')
       }
     }
   }
 
   const toggleUserVerification = async (userId, currentStatus) => {
     try {
+      if (!userId) {
+        showError('Invalid user ID')
+        return
+      }
+      
       const token = localStorage.getItem('token')
-  const response = await fetch(`${import.meta.env.VITE_API_URL}/admin/users/${userId}`, {
+      if (!token) {
+        showError('Authentication token not found. Please log in again.')
+        return
+      }
+      
+      // Log the action being attempted
+      console.log(`Attempting to ${currentStatus ? 'disable' : 'verify'} user ${userId}`)
+      
+      // Ensure we have the correct API URL
+      const apiBaseUrl = import.meta.env.VITE_API_URL || 'https://resilinked-9mf9.vercel.app/api'
+      
+      // First, get the current user data so we have all required fields
+      const userDataResponse = await fetch(`${apiBaseUrl}/admin/users/${userId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      
+      if (!userDataResponse.ok) {
+        console.error('Failed to fetch user data:', userDataResponse.status)
+        showError('Failed to fetch user data')
+        return
+      }
+      
+      const userData = await userDataResponse.json()
+      const user = userData.user || userData
+      
+      console.log('Retrieved user data:', user)
+      
+      // Create update object with all required fields and new verification status
+      const updateData = {
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        userType: user.userType,
+        isVerified: !currentStatus
+      }
+      
+      console.log('Sending user update with data:', updateData)
+      
+      // Make the API call to update user verification status
+      const response = await fetch(`${apiBaseUrl}/admin/users/${userId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ isVerified: !currentStatus })
+        body: JSON.stringify(updateData)
       })
       
+      // Log the response status
+      console.log('Response status:', response.status)
+      
       if (response.ok) {
+        // Success path
+        let userData
+        try {
+          userData = await response.json()
+          console.log('API response data:', userData)
+        } catch (parseError) {
+          console.warn('Could not parse response as JSON, but request was successful')
+        }
+        
+        // Update the local state immediately for better UX
+        setUsers(prevUsers => prevUsers.map(user => 
+          user._id === userId ? {...user, isVerified: !currentStatus} : user
+        ))
+        
+        // Show success message
         success(`User ${!currentStatus ? 'verified' : 'disabled'} successfully`)
+        
+        // Refresh data from server to ensure consistency
         await loadUsers(pagination.page, 10)
         await loadDashboardStats()
       } else {
-        showError('Failed to update user verification')
+        // Error path - safely handle different types of error responses
+        try {
+          const contentType = response.headers.get("content-type")
+          if (contentType && contentType.indexOf("application/json") !== -1) {
+            const errorData = await response.json()
+            console.error('API error response:', errorData)
+            
+            // Extract meaningful error message if available
+            const errorMessage = errorData.message || errorData.error || 'Unknown error'
+            showError(`Failed to update user verification: ${errorMessage}`)
+          } else {
+            // Non-JSON error response
+            console.error('API error response: Non-JSON response with status', response.status)
+            showError(`Failed to update user verification (HTTP ${response.status})`)
+          }
+        } catch (parseError) {
+          // Error parsing the error response
+          console.error('Failed to parse error response:', parseError)
+          showError(`Failed to update user verification (HTTP ${response.status})`)
+        }
       }
     } catch (error) {
+      // Network or other unhandled errors
       console.error('Error toggling user verification:', error)
-      showError('Error updating user verification')
+      showError('Network error while updating user verification')
     }
   }
 
