@@ -436,7 +436,7 @@ function AdminDashboard() {
   const loadDashboardStats = async () => {
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://resilinked-9mf9.vercel.app/api'}/admin/dashboard`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://resi-backend-1.onrender.com/api'}/admin/dashboard`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       
@@ -760,7 +760,7 @@ function AdminDashboard() {
       console.log(`Attempting to ${currentStatus ? 'disable' : 'verify'} user ${userId}`)
       
       // Ensure we have the correct API URL
-      const apiBaseUrl = import.meta.env.VITE_API_URL || 'https://resilinked-9mf9.vercel.app/api'
+      const apiBaseUrl = import.meta.env.VITE_API_URL || 'https://resi-backend-1.onrender.com/api'
       
       // First, get the current user data so we have all required fields
       const userDataResponse = await fetch(`${apiBaseUrl}/admin/users/${userId}`, {
@@ -855,7 +855,8 @@ function AdminDashboard() {
   const viewJob = async (jobId) => {
     try {
       const token = localStorage.getItem('token')
-  const response = await fetch(`${import.meta.env.VITE_API_URL}/jobs/${jobId}`, {
+      const apiBaseUrl = import.meta.env.VITE_API_URL || 'https://resilinked-9mf9.vercel.app/api'
+      const response = await fetch(`${apiBaseUrl}/jobs/${jobId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       
@@ -875,7 +876,8 @@ function AdminDashboard() {
     if (window.confirm('Are you sure you want to delete this job? This action cannot be undone.')) {
       try {
         const token = localStorage.getItem('token')
-  const response = await fetch(`${import.meta.env.VITE_API_URL}/admin/jobs/${jobId}`, {
+        const apiBaseUrl = import.meta.env.VITE_API_URL || 'https://resilinked-9mf9.vercel.app/api'
+        const response = await fetch(`${apiBaseUrl}/admin/jobs/${jobId}`, {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${token}` }
         })
@@ -901,7 +903,8 @@ function AdminDashboard() {
   const toggleJobStatus = async (jobId, currentStatus) => {
     try {
       const token = localStorage.getItem('token')
-  const response = await fetch(`${import.meta.env.VITE_API_URL}/jobs/${jobId}/close`, {
+      const apiBaseUrl = import.meta.env.VITE_API_URL || 'https://resilinked-9mf9.vercel.app/api'
+      const response = await fetch(`${apiBaseUrl}/jobs/${jobId}/close`, {
         method: 'PUT',
         headers: { 
           'Authorization': `Bearer ${token}`,
@@ -926,7 +929,8 @@ function AdminDashboard() {
   const exportData = async (type, format = 'csv') => {
     try {
       const token = localStorage.getItem('token')
-  const response = await fetch(`${import.meta.env.VITE_API_URL}/export/${type}?format=${format}`, {
+      const apiBaseUrl = import.meta.env.VITE_API_URL || 'https://resilinked-9mf9.vercel.app/api'
+      const response = await fetch(`${apiBaseUrl}/export/${type}?format=${format}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       
