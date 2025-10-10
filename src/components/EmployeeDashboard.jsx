@@ -102,9 +102,23 @@ function EmployeeDashboard() {
       // Load job matches
       try {
         setLoading(prev => ({ ...prev, matches: true }));
-        const matches = await apiService.getMyMatches();
-        // Backend returns jobs directly in the response
-        setJobMatches(Array.isArray(matches) ? matches : []);
+        const response = await apiService.getMyMatches();
+        
+        console.log('Job matches response:', response);
+        
+        // Handle various response formats
+        if (response && response.jobs) {
+          // New format returns { jobs: [...] }
+          setJobMatches(Array.isArray(response.jobs) ? response.jobs : []);
+          
+          // Show message if user has no skills
+          if (response.noSkills) {
+            showError('Add skills to your profile to see job matches', 'info');
+          }
+        } else {
+          // Backward compatibility for old API
+          setJobMatches(Array.isArray(response) ? response : []);
+        }
       } catch (error) {
         console.error('Error loading job matches:', error);
         showError('Failed to load job matches');
@@ -402,38 +416,101 @@ function EmployeeDashboard() {
                     <h3>{job.title}</h3>
                     <div className="job-price">₱{job.price?.toLocaleString()}</div>
                   </div>
+                  
+                  {/* Match Score Indicator */}
+                  {job.matchScore && (
+                    <div className="match-score-container">
+                      <div className="match-score">
+                        <span className="match-label">Match</span>
+                        <span className="match-percentage">
+                          {Math.min(100, Math.round(job.matchScore / 10 * 20))}%
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  
                   <div className="job-meta">
                     <div className="meta-item">
                       <span className="icon">📍</span>
                       {job.barangay}
+                      {job.barangay === user?.barangay && (
+                        <span className="location-match">Your area</span>
+                      )}
                     </div>
                     <div className="meta-item">
-                      <span className="icon">👥</span>
+                      <span className="icon">�</span>
+                      {new Date(job.datePosted).toLocaleDateString()}
+                    </div>
+                    <div className="meta-item">
+                      <span className="icon">�👥</span>
                       Posted by: {job.postedBy?.firstName} {job.postedBy?.lastName}
                     </div>
-                    {job.skillsRequired && (
-                      <div className="skills-list">
-                        {job.skillsRequired.map((skill, index) => (
-                          <span key={index} className="skill-tag">{skill}</span>
-                        ))}
+                    
+                    {/* Matching Skills Section */}
+                    {job.matchingSkills && job.matchingSkills.length > 0 && (
+                      <div className="matching-skills-container">
+                        <div className="matching-skills-label">
+                          <span className="icon">✓</span> Your matching skills ({job.matchingSkills.length}):
+                        </div>
+                        <div className="matching-skills-list">
+                          {job.matchingSkills.map((skill, index) => (
+                            <span key={index} className="skill-tag matching">{skill}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* All Required Skills Section */}
+                    {job.skillsRequired && job.skillsRequired.length > 0 && (
+                      <div className="skills-container">
+                        <div className="skills-label">All required skills ({job.skillsRequired.length}):</div>
+                        <div className="skills-list">
+                          {job.skillsRequired.map((skill, index) => {
+                            const isMatching = job.matchingSkills && job.matchingSkills.includes(skill);
+                            return (
+                              <span 
+                                key={index} 
+                                className={`skill-tag ${isMatching ? 'matching' : 'non-matching'}`}
+                              >
+                                {skill}{isMatching && ' ✓'}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {job.description && (
+                      <div className="job-description">
+                        <p>{job.description.length > 100 
+                          ? `${job.description.substring(0, 100)}...` 
+                          : job.description}
+                        </p>
                       </div>
                     )}
                   </div>
-                  {job.isOpen && !myApplications.some(app => app._id === job._id) && (
-                    <div className="job-actions">
+                  
+                  <div className="job-actions">
+                    {job.isOpen && !myApplications.some(app => app._id === job._id) ? (
                       <button 
                         onClick={() => handleApplyToJob(job._id)}
                         className="btn primary"
                       >
                         Apply Now
                       </button>
-                    </div>
-                  )}
+                    ) : (
+                      myApplications.some(app => app._id === job._id) && (
+                        <span className="applied-badge">Already Applied</span>
+                      )
+                    )}
+                    <Link to={`/jobs/${job._id}`} className="btn secondary">View Details</Link>
+                  </div>
                 </div>
               ))
             ) : (
               <div className="no-data">
-                <p>No job matches found</p>
+                <p>No job matches found for your skills</p>
+                <Link to="/profile" className="btn secondary">Update Your Skills</Link>
                 <Link to="/search-jobs" className="btn primary">Browse All Jobs</Link>
               </div>
             )}
@@ -660,11 +737,26 @@ function EmployeeDashboard() {
           margin-bottom: 0.5rem;
         }
 
-        .skills-list {
+        .skills-container, .matching-skills-container {
+          margin-top: 0.8rem;
+        }
+        
+        .skills-label, .matching-skills-label {
+          font-weight: 600;
+          font-size: 0.9rem;
+          margin-bottom: 0.4rem;
+          color: #2d3748;
+        }
+        
+        .matching-skills-label {
+          color: #38a169;
+        }
+        
+        .skills-list, .matching-skills-list {
           display: flex;
           flex-wrap: wrap;
           gap: 0.5rem;
-          margin-top: 0.5rem;
+          margin-top: 0.3rem;
         }
 
         .skill-tag {
@@ -673,6 +765,75 @@ function EmployeeDashboard() {
           padding: 0.25rem 0.5rem;
           border-radius: 12px;
           font-size: 0.8rem;
+        }
+        
+        .skill-tag.matching {
+          background: #c6f6d5;
+          color: #2f855a;
+          border: 1px solid #9ae6b4;
+          font-weight: 500;
+        }
+        
+        .skill-tag.non-matching {
+          background: #edf2f7;
+          color: #718096;
+        }
+        
+        .match-score-container {
+          display: flex;
+          justify-content: flex-end;
+          margin-bottom: 0.5rem;
+        }
+        
+        .match-score {
+          display: flex;
+          align-items: center;
+          background: #ebf8ff;
+          border-radius: 15px;
+          padding: 0.3rem 0.8rem;
+          border: 1px solid #90cdf4;
+        }
+        
+        .match-label {
+          color: #2b6cb0;
+          font-size: 0.8rem;
+          font-weight: 500;
+          margin-right: 0.3rem;
+        }
+        
+        .match-percentage {
+          color: #2b6cb0;
+          font-size: 0.9rem;
+          font-weight: 700;
+        }
+        
+        .location-match {
+          background: #e6fffa;
+          color: #2c7a7b;
+          border-radius: 10px;
+          padding: 0.1rem 0.4rem;
+          margin-left: 0.5rem;
+          font-size: 0.7rem;
+          font-weight: 500;
+          border: 1px solid #81e6d9;
+        }
+        
+        .job-description {
+          margin-top: 0.8rem;
+          color: #4a5568;
+          font-size: 0.9rem;
+          line-height: 1.4;
+        }
+        
+        .applied-badge {
+          display: inline-block;
+          background: #fed7aa;
+          color: #c05621;
+          padding: 0.5rem 1rem;
+          border-radius: 8px;
+          font-size: 0.9rem;
+          font-weight: 500;
+          border: 1px solid #ed8936;
         }
 
         .status {

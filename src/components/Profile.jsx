@@ -31,6 +31,8 @@ function Profile() {
     deadline: ''
   })
   const [goals, setGoals] = useState([])
+  const [recommendedJobs, setRecommendedJobs] = useState([])
+  const [loadingJobs, setLoadingJobs] = useState(false)
   const [uploading, setUploading] = useState(false)
   
   const { user, updateUser, verifyToken } = useAuth()
@@ -174,6 +176,14 @@ function Profile() {
       skills: prev.skills.includes(skill)
         ? prev.skills.filter(s => s !== skill)
         : [...prev.skills, skill]
+    }))
+  }
+  
+  // Dedicated function for removing a skill
+  const removeSkill = (skillToRemove) => {
+    setEditFormData(prev => ({
+      ...prev,
+      skills: prev.skills.filter(skill => skill !== skillToRemove)
     }))
   }
 
@@ -460,25 +470,28 @@ function Profile() {
           border-radius: 16px;
           font-size: 0.9rem;
           font-weight: 500;
+          margin: 0.2rem;
         }
         .remove-skill {
-          background: none;
+          background: rgba(255, 255, 255, 0.1);
           border: none;
           color: white;
           cursor: pointer;
-          font-size: 0.9rem;
+          font-size: 0.95rem;
           padding: 0;
-          margin-left: 0.25rem;
-          width: 16px;
-          height: 16px;
+          margin-left: 0.5rem;
+          width: 20px;
+          height: 20px;
           border-radius: 50%;
           display: inline-flex;
           align-items: center;
           justify-content: center;
           line-height: 1;
+          transition: all 0.2s ease;
         }
         .remove-skill:hover {
-          background: rgba(255, 255, 255, 0.2);
+          background: rgba(255, 255, 255, 0.3);
+          transform: scale(1.1);
         }
         .skills-checkbox-group {
           display: grid;
@@ -852,7 +865,7 @@ function Profile() {
                             <button
                               type="button"
                               className="remove-skill"
-                              onClick={() => handleSkillToggle(skill)}
+                              onClick={() => removeSkill(skill)}
                               title="Remove skill"
                             >
                               ×
@@ -1023,6 +1036,20 @@ function Profile() {
       </div>
       <style>{`
 /* Modal and Edit Form Modern Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0,0,0,0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  padding: 20px;
+  overflow-y: auto;
+}
 .modal-content {
   max-width: 900px;
   background: #fff;
@@ -1032,6 +1059,8 @@ function Profile() {
   margin: 0 auto;
   position: relative;
   z-index: 2000;
+  max-height: 90vh;
+  overflow-y: auto;
 }
 .edit-form {
   max-width: 600px;

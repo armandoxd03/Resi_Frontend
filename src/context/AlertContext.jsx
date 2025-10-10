@@ -38,8 +38,8 @@ export function AlertProvider({ children }) {
     return addAlert(message, 'success', duration)
   }, [addAlert])
 
-  const error = useCallback((message, duration = 6000) => {
-    return addAlert(message, 'error', duration)
+  const error = useCallback((message, type = 'error', duration = 6000) => {
+    return addAlert(message, type, duration)
   }, [addAlert])
 
   const warning = useCallback((message, duration = 5000) => {

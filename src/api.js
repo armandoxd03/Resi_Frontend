@@ -323,7 +323,18 @@ class ApiService {
   }
 
   async getMyMatches() {
-    return this.request("/jobs/my-matches");
+    try {
+      console.log('Getting job matches from API');
+      const result = await this.request("/jobs/my-matches");
+      console.log('Job matches API result:', result);
+      return result;
+    } catch (error) {
+      console.error('Error getting job matches:', error);
+      if (error.message.includes('Resource not found')) {
+        return { jobs: [], error: 'Job matching service not available' };
+      }
+      throw error;
+    }
   }
 
   async getJobs(params = {}) {
