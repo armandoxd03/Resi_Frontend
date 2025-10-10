@@ -11,6 +11,7 @@ import Profile from './components/Profile'
 import PostProfile from './components/PostProfile'
 import PostJob from './components/PostJob'
 import SearchJobs from './components/SearchJobs'
+import SearchWorkers from './components/SearchWorkers'
 import JobsManagement from './components/JobsManagement'
 import EmployeeDashboard from './components/EmployeeDashboard'
 import EmployerDashboard from './components/EmployerDashboard'
@@ -131,6 +132,12 @@ function App() {
             <Route path="/search-jobs" element={
               <ProtectedRoute>
                 <SearchJobs />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/search-workers" element={
+              <ProtectedRoute>
+                <SearchWorkers />
               </ProtectedRoute>
             } />
             

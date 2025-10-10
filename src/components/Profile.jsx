@@ -31,8 +31,6 @@ function Profile() {
     deadline: ''
   })
   const [goals, setGoals] = useState([])
-  const [recommendedJobs, setRecommendedJobs] = useState([])
-  const [loadingJobs, setLoadingJobs] = useState(false)
   const [uploading, setUploading] = useState(false)
   
   const { user, updateUser, verifyToken } = useAuth()

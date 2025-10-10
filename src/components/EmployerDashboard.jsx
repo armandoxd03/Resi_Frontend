@@ -157,8 +157,12 @@ function EmployerDashboard() {
       })
       
       if (response.ok) {
-        const workersData = await response.json()
-        setWorkers(workersData)
+        const data = await response.json()
+        if (data && data.users) {
+          setWorkers(data.users)
+        } else {
+          setWorkers([])
+        }
       } else {
         // Fallback for demo
         setWorkers([])
@@ -344,7 +348,7 @@ function EmployerDashboard() {
           <span className="icon">➕</span>
           Post New Job
         </Link>
-        <Link to="/search-jobs" className="action-btn secondary">
+        <Link to="/search-workers" className="action-btn secondary">
           <span className="icon">🔍</span>
           Browse Workers
         </Link>
