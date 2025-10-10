@@ -403,6 +403,12 @@ class ApiService {
       method: "PUT",
     });
   }
+  
+  async completeJob(jobId) {
+    return this.request(`/jobs/${jobId}/complete`, {
+      method: "PUT",
+    });
+  }
 
   async deleteJob(jobId) {
     return this.request(`/jobs/${jobId}`, {
@@ -454,6 +460,19 @@ class ApiService {
   async deleteGoal(goalId) {
     return this.request(`/goals/${goalId}`, {
       method: "DELETE",
+    });
+  }
+  
+  async addIncomeToGoal(data) {
+    return this.request('/goals/income', {
+      method: "POST",
+      body: data
+    });
+  }
+  
+  async setActiveGoal(goalId) {
+    return this.request(`/goals/${goalId}/activate`, {
+      method: "POST"
     });
   }
 

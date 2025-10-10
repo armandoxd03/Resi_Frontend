@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useAlert } from '../context/AlertContext'
 import apiService from '../api'
+import GoalManagement from './GoalManagement'
 
 function Profile() {
   const [profile, setProfile] = useState(null)
@@ -22,15 +23,7 @@ function Profile() {
     barangay: '',
     skills: []
   })
-  const [showGoalModal, setShowGoalModal] = useState(false)
-  const [currentGoal, setCurrentGoal] = useState(null)
-  const [goalFormData, setGoalFormData] = useState({
-    title: '',
-    targetAmount: '',
-    currentAmount: '',
-    deadline: ''
-  })
-  const [goals, setGoals] = useState([])
+  // Goals state removed - now using GoalManagement component
   const [uploading, setUploading] = useState(false)
   
   const { user, updateUser, verifyToken } = useAuth()
@@ -38,17 +31,6 @@ function Profile() {
 
   useEffect(() => {
     loadProfile()
-    // Load sample goals for demonstration
-    setGoals([
-      { 
-        id: '1', 
-        title: 'Monthly Savings', 
-        targetAmount: 10000, 
-        currentAmount: 6550, 
-        deadline: '2025-12-31',
-        progress: 65.5
-      }
-    ])
   }, [])
 
   useEffect(() => {
@@ -217,85 +199,7 @@ function Profile() {
     }
   }
   
-  // Goal management functions
-  const handleOpenGoalModal = (goal = null) => {
-    if (goal) {
-      // Edit existing goal
-      setCurrentGoal(goal)
-      setGoalFormData({
-        title: goal.title,
-        targetAmount: goal.targetAmount,
-        currentAmount: goal.currentAmount,
-        deadline: goal.deadline
-      })
-    } else {
-      // New goal
-      setCurrentGoal(null)
-      setGoalFormData({
-        title: '',
-        targetAmount: '',
-        currentAmount: '0',
-        deadline: ''
-      })
-    }
-    setShowGoalModal(true)
-  }
-  
-  const handleGoalInputChange = (e) => {
-    const { name, value } = e.target
-    setGoalFormData(prev => ({
-      ...prev,
-      [name]: value
-    }))
-  }
-  
-  const handleSaveGoal = (e) => {
-    e.preventDefault()
-    
-    // Calculate progress percentage
-    const targetAmount = parseFloat(goalFormData.targetAmount)
-    const currentAmount = parseFloat(goalFormData.currentAmount)
-    const progress = targetAmount > 0 ? (currentAmount / targetAmount) * 100 : 0
-    
-    if (currentGoal) {
-      // Update existing goal
-      setGoals(goals.map(g => 
-        g.id === currentGoal.id 
-          ? { 
-              ...g, 
-              title: goalFormData.title,
-              targetAmount,
-              currentAmount,
-              deadline: goalFormData.deadline,
-              progress
-            } 
-          : g
-      ))
-      success('Goal updated successfully!')
-    } else {
-      // Create new goal
-      const newGoal = {
-        id: Date.now().toString(),
-        title: goalFormData.title,
-        targetAmount,
-        currentAmount,
-        deadline: goalFormData.deadline,
-        progress
-      }
-      setGoals([...goals, newGoal])
-      success('New goal created successfully!')
-    }
-    
-    setShowGoalModal(false)
-  }
-  
-  const handleDeleteGoal = (goalId) => {
-    if (confirm('Are you sure you want to delete this goal?')) {
-      setGoals(goals.filter(goal => goal.id !== goalId))
-      success('Goal deleted successfully!')
-      if (showGoalModal) setShowGoalModal(false)
-    }
-  }
+  // Goal management logic moved to GoalManagement component
 
   if (loading) {
     return (
@@ -316,6 +220,7 @@ function Profile() {
           padding: 4rem 7vw 4rem 7vw;
           margin: 0 auto;
           box-shadow: 0 4px 24px rgba(34, 41, 47, 0.10), 0 1.5px 6px rgba(0,0,0,0.04);
+        }
         .modal-header {
           display: flex;
           justify-content: space-between;
@@ -656,63 +561,7 @@ function Profile() {
         </div>
 
         <div className="profile-section">
-          <div className="section-header">
-            <h2>Layunin Sa Pananalapi</h2>
-            <button className="add-goal-btn" onClick={() => handleOpenGoalModal()}>
-              <span>+</span> Add New Goal
-            </button>
-          </div>
-          
-          {goals.length > 0 ? (
-            <div className="goals-container">
-              {goals.map(goal => (
-                <div className="goal-card" key={goal.id}>
-                  <div className="goal-header">
-                    <h3>{goal.title}</h3>
-                    <div className="goal-actions">
-                      <button 
-                        className="edit-goal-btn" 
-                        onClick={() => handleOpenGoalModal(goal)}
-                        title="Edit Goal"
-                      >
-                        ✎
-                      </button>
-                      <button 
-                        className="delete-goal-btn" 
-                        onClick={() => handleDeleteGoal(goal.id)}
-                        title="Delete Goal"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <div className="goal-details">
-                    <div className="goal-amount">
-                      ₱{goal.currentAmount.toLocaleString()} / ₱{goal.targetAmount.toLocaleString()}
-                    </div>
-                    {goal.deadline && (
-                      <div className="goal-deadline">
-                        Target Date: {new Date(goal.deadline).toLocaleDateString()}
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="profile-goal-bar">
-                    <div 
-                      className="profile-goal-bar-inner" 
-                      style={{ width: `${Math.min(100, goal.progress)}%` }}
-                    ></div>
-                  </div>
-                  <div className="profile-goal-percent">{goal.progress.toFixed(1)}%</div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="no-goals-message">
-              No financial goals set yet. Click "Add New Goal" to create one.
-            </div>
-          )}
+          <GoalManagement />
         </div>
 
         <div className="profile-section">
@@ -948,91 +797,253 @@ function Profile() {
           </div>
         )}
 
-        {/* Goal Modal */}
-        {showGoalModal && (
-          <div className="modal-overlay" onClick={() => setShowGoalModal(false)}>
-            <div className="modal-content goal-modal" onClick={(e) => e.stopPropagation()}>
-              <button onClick={() => setShowGoalModal(false)} className="close">×</button>
-              <div className="modal-header">
-                <h3>{currentGoal ? 'Edit Goal' : 'Add New Goal'}</h3>
-              </div>
-              <form onSubmit={handleSaveGoal} className="edit-form">
-                <div className="form-group">
-                  <label htmlFor="title">Goal Title</label>
-                  <input
-                    type="text"
-                    id="title"
-                    name="title"
-                    value={goalFormData.title}
-                    onChange={handleGoalInputChange}
-                    placeholder="e.g., Monthly Savings, New Car, etc."
-                    required
-                  />
-                </div>
 
-                <div className="form-row">
-                  <div className="form-group">
-                    <label htmlFor="targetAmount">Target Amount (₱)</label>
-                    <input
-                      type="number"
-                      id="targetAmount"
-                      name="targetAmount"
-                      value={goalFormData.targetAmount}
-                      onChange={handleGoalInputChange}
-                      placeholder="e.g., 10000"
-                      min="1"
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label htmlFor="currentAmount">Current Amount (₱)</label>
-                    <input
-                      type="number"
-                      id="currentAmount"
-                      name="currentAmount"
-                      value={goalFormData.currentAmount}
-                      onChange={handleGoalInputChange}
-                      placeholder="e.g., 5000"
-                      min="0"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="deadline">Target Date (Optional)</label>
-                  <input
-                    type="date"
-                    id="deadline"
-                    name="deadline"
-                    value={goalFormData.deadline}
-                    onChange={handleGoalInputChange}
-                  />
-                </div>
-
-                <div className="modal-actions">
-                  {currentGoal && (
-                    <button 
-                      type="button" 
-                      className="btn btn-danger"
-                      onClick={() => handleDeleteGoal(currentGoal.id)}
-                    >
-                      Delete Goal
-                    </button>
-                  )}
-                  <button type="button" onClick={() => setShowGoalModal(false)} className="btn btn-secondary">
-                    Cancel
-                  </button>
-                  <button type="submit" className="btn btn-primary">
-                    {currentGoal ? 'Update Goal' : 'Create Goal'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
       </div>
       <style>{`
+/* Goal System Styles */
+.goal-header-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.add-goal-btn {
+  background: var(--primary-color);
+  color: white;
+  border: none;
+}
+
+.add-income-btn {
+  background: var(--success-color, #28a745);
+  color: white;
+  border: none;
+}
+
+.goals-section {
+  margin-top: 16px;
+}
+
+.goals-category-title {
+  font-size: 1.2rem;
+  font-weight: 500;
+  margin-bottom: 12px;
+  color: var(--secondary-color, #666);
+}
+
+.goals-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.goal-card {
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  padding: 16px;
+  transition: all 0.2s ease;
+  border-left: 4px solid #ccc;
+}
+
+.active-goal {
+  border-left-color: var(--primary-color, #007bff);
+  box-shadow: 0 3px 12px rgba(0,120,255,0.15);
+}
+
+.pending-goal {
+  border-left-color: var(--warning-color, #ffc107);
+}
+
+.completed-goal {
+  border-left-color: var(--success-color, #28a745);
+  opacity: 0.8;
+}
+
+.goal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.goal-title-section {
+  flex: 1;
+}
+
+.goal-title {
+  margin: 0 0 6px;
+  font-size: 1.1rem;
+}
+
+.goal-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.edit-goal-btn, .delete-goal-btn, .activate-goal-btn {
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.edit-goal-btn:hover {
+  background: #f0f0f0;
+}
+
+.delete-goal-btn:hover {
+  background: #ffeeee;
+  color: #ff3333;
+}
+
+.activate-goal-btn {
+  margin-top: 8px;
+  background: var(--primary-color);
+  color: white;
+  font-size: 0.85rem;
+  padding: 6px 12px;
+}
+
+.goal-details {
+  margin-bottom: 12px;
+}
+
+.goal-amount {
+  font-weight: 600;
+  font-size: 1.1rem;
+  margin-bottom: 4px;
+}
+
+.goal-completion-date {
+  font-size: 0.8rem;
+  color: #666;
+  margin-top: 4px;
+}
+
+.goal-progress-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.profile-goal-bar {
+  flex: 1;
+  height: 10px;
+  background: #eee;
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.profile-goal-bar-inner {
+  height: 100%;
+  background: var(--primary-color, #007bff);
+  border-radius: 5px;
+  transition: width 0.5s ease;
+}
+
+.profile-goal-bar-inner.completed {
+  background: var(--success-color, #28a745);
+}
+
+.profile-goal-percent {
+  font-size: 0.85rem;
+  color: #666;
+  min-width: 40px;
+  text-align: right;
+}
+
+.active-badge {
+  display: inline-block;
+  background: var(--primary-color, #007bff);
+  color: white;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  margin-top: 4px;
+  margin-bottom: 8px;
+}
+
+.completed-badge {
+  display: inline-block;
+  background: var(--success-color, #28a745);
+  color: white;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  margin-top: 4px;
+  margin-bottom: 8px;
+}
+
+.goal-priority {
+  font-size: 0.8rem;
+  color: #666;
+  margin-top: 4px;
+}
+
+.no-goals-message {
+  text-align: center;
+  padding: 32px 0;
+  color: #666;
+}
+
+.active-goal-info {
+  background: #f9f9f9;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.goal-progress-display {
+  margin-top: 8px;
+}
+
+.goal-amount-display {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.goal-progress-bar {
+  height: 8px;
+  background: #eee;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: var(--primary-color, #007bff);
+  border-radius: 4px;
+}
+
+.goal-percent-display {
+  text-align: right;
+  font-size: 0.8rem;
+  color: #666;
+}
+
+.income-modal {
+  max-width: 500px;
+}
+
+.no-active-goal-message {
+  text-align: center;
+  padding: 16px 0;
+}
+
 /* Modal and Edit Form Modern Styles */
 .modal-overlay {
   position: fixed;

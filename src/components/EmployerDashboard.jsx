@@ -183,6 +183,45 @@ function EmployerDashboard() {
     navigate(`/edit-job/${jobId}`)
   }
 
+  const completeJob = async (jobId) => {
+    if (window.confirm('Mark this job as completed? This will automatically transfer the job income to the worker\'s active financial goal.')) {
+      try {
+        const token = localStorage.getItem('token');
+        
+        if (!token) {
+          console.error('No authentication token found');
+          showError('Authorization failed. Please log in again.');
+          return;
+        }
+        
+        const apiUrl = import.meta.env.VITE_API_URL || "https://resi-backend-1.onrender.com/api";
+        const endpoint = `${apiUrl}/jobs/${jobId}/complete`;
+        
+        const response = await fetch(endpoint, {
+          method: 'PUT',
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        const responseData = await response.json();
+        
+        if (response.ok) {
+          success(responseData.alert || 'Job marked as completed successfully');
+          // Refresh the jobs list and dashboard stats
+          loadMyJobs();
+          loadDashboardStats();
+        } else {
+          showError(`Failed to complete job: ${responseData.message || responseData.alert || 'Unknown error'}`);
+        }
+      } catch (error) {
+        console.error('Error completing job:', error);
+        showError(`Error completing job: ${error.message}`);
+      }
+    }
+  }
+
   const deleteJob = async (jobId) => {
     if (window.confirm('Are you sure you want to delete this job?')) {
       try {
@@ -195,7 +234,7 @@ function EmployerDashboard() {
           return;
         }
         
-        const apiUrl = import.meta.env.VITE_API_URL || "https://resilinked-9mf9.vercel.app/api";
+        const apiUrl = import.meta.env.VITE_API_URL || "https://resi-backend-1.onrender.com/api";
         const endpoint = `${apiUrl}/jobs/${jobId}`;
         console.log('DELETE request to endpoint:', endpoint);
         
@@ -396,23 +435,27 @@ function EmployerDashboard() {
                         <div className="job-price">₱{job.price?.toLocaleString()}</div>
                       </div>
                       
-                      <div className="job-meta">
-                        <div className="meta-item">
-                          <span className="icon">📍</span>
-                          {job.barangay}
-                        </div>
-                        <div className="meta-item">
-                          <span className="icon">👥</span>
-                          {job.applicants ? job.applicants.length : 0} applicants
-                        </div>
-                        <div className="meta-item">
-                          <span className={`status ${job.isOpen !== false ? 'active' : 'closed'}`}>
-                            {job.isOpen !== false ? 'Active' : 'Closed'}
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <p className="job-description">
+                        <div className="job-meta">
+                          <div className="meta-item">
+                            <span className="icon">📍</span>
+                            {job.barangay}
+                          </div>
+                          <div className="meta-item">
+                            <span className="icon">👥</span>
+                            {job.applicants ? job.applicants.length : 0} applicants
+                          </div>
+                          <div className="meta-item">
+                            <span className={`status ${job.isOpen !== false ? 'active' : (job.completed ? 'completed' : 'closed')}`}>
+                              {job.completed ? 'Completed' : (job.isOpen !== false ? 'Active' : 'Closed')}
+                            </span>
+                          </div>
+                          {job.assignedTo && (
+                            <div className="meta-item">
+                              <span className="icon">👤</span>
+                              Assigned to: {job.assignedTo.firstName} {job.assignedTo.lastName}
+                            </div>
+                          )}
+                        </div>                      <p className="job-description">
                         {job.description?.substring(0, 100)}
                         {job.description?.length > 100 ? '...' : ''}
                       </p>
@@ -424,6 +467,14 @@ function EmployerDashboard() {
                         >
                           Edit
                         </button>
+                        {job.assignedTo && !job.completed && (
+                          <button 
+                            className="btn success"
+                            onClick={() => completeJob(job._id)}
+                          >
+                            Mark Completed
+                          </button>
+                        )}
                         <button 
                           className="btn danger"
                           onClick={() => deleteJob(job._id)}
@@ -775,6 +826,11 @@ function EmployerDashboard() {
         .status.closed {
           background: #fed7d7;
           color: #c53030;
+        }
+        
+        .status.completed {
+          background: #d1ecf1;
+          color: #0c5460;
         }
 
         .status.pending {
