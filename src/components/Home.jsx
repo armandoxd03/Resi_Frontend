@@ -47,19 +47,19 @@ function Home() {
     <div className="home-container fade-in">
       <section className="hero">
         <div className="hero-content">
-          <h2>Maligayang pagdating sa ResiLinked</h2>
-          <p>Dito ay makakakita ka ng trabaho batay sa inyong mga kakayahan!</p>
+          <h2>Welcome to ResiLinked</h2>
+          <p>Find jobs based on your skills and abilities!</p>
           <div className="button-row">
             <button onClick={handleSearchJobs} className="btn">
-              🔍 Maghanap ng Trabaho
+              🔍 Search for Jobs
             </button>
             {isAuthenticated ? (
               <button onClick={handlePostJob} className="btn">
-                ➕ Mag-Post ng Trabaho
+                ➕ Post a Job
               </button>
             ) : (
               <Link to="/login" className="btn">
-                👤 Mag-Login para Mag-Post
+                👤 Login to Post
               </Link>
             )}
           </div>
@@ -68,23 +68,23 @@ function Home() {
 
       <section className="how-section">
         <div className="how-section-container">
-          <h2>Paano gumagana ang ResiLinked</h2>
+          <h2>How ResiLinked Works</h2>
           <div className="how-steps">
             <div>
               <span>1</span>
-              Mag-Sign-in at Gumawa ng Profile
+              Sign-in and Create a Profile
             </div>
             <div>
               <span>2</span>
-              Maghanap ng Trabaho o Kandidato
+              Search for Jobs or Candidates
             </div>
             <div>
               <span>3</span>
-              Mag-apply sa mga Trabaho
+              Apply for Jobs
             </div>
             <div>
               <span>4</span>
-              Ibigay ang Rating at Makipag-ugnayan
+              Give Ratings and Connect
             </div>
           </div>
         </div>
@@ -92,7 +92,7 @@ function Home() {
 
       <section className="jobs-section jobs-section-white">
         <div className="jobs-section-container jobs-section-container-white">
-          <h2 className="jobs-section-title-white">Sikat na Trabaho</h2>
+          <h2 className="jobs-section-title-white">Popular Jobs</h2>
           <div className="jobs-list">
             {loading ? (
               <div className="no-data">📊 Loading popular jobs...</div>
@@ -103,7 +103,7 @@ function Home() {
                   className="job-card job-card-btn"
                   type="button"
                   tabIndex={0}
-                  aria-label={`Tingnan ang mga trabaho para sa ${job.title || job.jobCategory}`}
+                  aria-label={`View jobs for ${job.title || job.jobCategory}`}
                   onClick={() => navigate(`/search-jobs?title=${encodeURIComponent(job.title || job.jobCategory)}`)}
                   onKeyDown={e => {
                     if (e.key === 'Enter' || e.key === ' ') {
@@ -117,8 +117,8 @@ function Home() {
                 </button>
               ))
             ) : (
-              <div className="no-data">
-                📋 Walang available na trabaho ngayon
+                <div className="no-data">
+                📋 No jobs available at the moment
               </div>
             )}
           </div>
@@ -127,7 +127,7 @@ function Home() {
 
       <section className="testimonials-section">
         <div className="testimonials-section-container">
-          <h2>Mga Sabi ng mga Kliyente</h2>
+          <h2>Client Testimonials</h2>
           <div className="testimonials-list">
             {loading ? (
               <div className="no-data">📝 Loading testimonials...</div>
@@ -136,7 +136,7 @@ function Home() {
                 <div key={index} className="testimonial-card">
                   <div className="testimonial-stars">★★★★★</div>
                   <div className="testimonial-content">
-                    "{user.testimonial || 'Napakagandang serbisyo!'}"
+                    "{user.testimonial || 'Excellent service!'}"
                   </div>
                   <div className="testimonial-footer">
                     <div className="testimonial-avatar">
@@ -155,7 +155,7 @@ function Home() {
               ))
             ) : (
               <div className="no-data">
-                💬 Walang testimonials pa ngayon
+                💬 No testimonials available yet
               </div>
             )}
           </div>

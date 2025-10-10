@@ -21,94 +21,94 @@ function Help() {
   const faqData = [
     {
       id: 1,
-      category: 'Account at Profile',
+      category: 'Account and Profile',
       icon: 'fas fa-user-circle',
       questions: [
         {
           id: 'reg',
-          question: 'Paano ako magre-register sa ResiLinked?',
-          answer: 'Mag-click sa "Register" button sa homepage. Punan ang lahat ng required fields kasama ang inyong pangalan, email, mobile number, at address. Kailangan rin ng valid ID para sa verification. Pagkatapos, maghihintay kayo ng email confirmation.'
+          question: 'How do I register on ResiLinked?',
+          answer: 'Click on the "Register" button on the homepage. Fill in all required fields including your name, email, mobile number, and address. You will also need a valid ID for verification. Afterwards, you will wait for an email confirmation.'
         },
         {
           id: 'pass',
-          question: 'Nakalimutan ko ang aking password. Paano ko ito ma-reset?',
-          answer: 'Sa login page, mag-click sa "Forgot Password". I-enter ang inyong email address at makatanggap kayo ng reset link. Sundin ang instructions sa email para ma-set ang bagong password.'
+          question: 'I forgot my password. How do I reset it?',
+          answer: 'On the login page, click on "Forgot Password". Enter your email address and you will receive a reset link. Follow the instructions in the email to set a new password.'
         },
         {
           id: 'update',
-          question: 'Paano ko i-update ang aking profile information?',
-          answer: 'Mag-login sa inyong account at pumunta sa "Profile" page. Mag-click sa "Edit Profile" button. Pwede ninyong i-update ang personal information, skills, at profile picture dito.'
+          question: 'How do I update my profile information?',
+          answer: 'Log in to your account and go to the "Profile" page. Click on the "Edit Profile" button. You can update your personal information, skills, and profile picture here.'
         },
         {
           id: 'verify',
-          question: 'Bakit hindi pa verified ang aking account?',
-          answer: 'Ang verification process ay tumatagal ng 1-3 business days. Sinusuri ng admin ang inyong submitted documents. Kung mahaba na ang naghihintay, mag-contact sa support team.'
+          question: 'Why is my account not verified yet?',
+          answer: 'The verification process takes 1-3 business days. The admin is reviewing your submitted documents. If you have been waiting for a long time, contact the support team.'
         }
       ]
     },
     {
       id: 2,
-      category: 'Paghahanap ng Trabaho',
+      category: 'Job Search',
       icon: 'fas fa-briefcase',
       questions: [
         {
           id: 'search',
-          question: 'Paano ako maghanap ng trabaho sa ResiLinked?',
-          answer: 'Pumunta sa "Find Jobs" page. Pwede ninyong i-filter ang mga trabaho based sa location, skill, at iba pang criteria. Mag-click sa job post para makita ang full details.'
+          question: 'How do I search for jobs on ResiLinked?',
+          answer: 'Go to the "Find Jobs" page. You can filter jobs based on location, skill, and other criteria. Click on a job post to see the full details.'
         },
         {
           id: 'apply',
-          question: 'Paano ko ma-apply sa isang job?',
-          answer: 'Sa job details page, mag-click sa "Apply Now" button. Makikita ng employer ang inyong profile at contact information. Sila na mismo ang makikipag-ugnayan sa inyo.'
+          question: 'How do I apply for a job?',
+          answer: 'On the job details page, click on the "Apply Now" button. The employer will see your profile and contact information. They will reach out to you directly.'
         },
         {
           id: 'save',
-          question: 'Pwede ko bang i-save ang mga job na interesado ako?',
-          answer: 'Yes! Mag-click sa heart icon sa job post para i-save. Makikita ninyo ang mga saved jobs sa inyong dashboard.'
+          question: 'Can I save jobs that I am interested in?',
+          answer: 'Yes! Click on the heart icon on a job post to save it. You can view your saved jobs on your dashboard.'
         }
       ]
     },
     {
       id: 3,
-      category: 'Pag-post ng Trabaho',
+      category: 'Job Posting',
       icon: 'fas fa-plus-circle',
       questions: [
         {
           id: 'employer',
-          question: 'Paano ako magiging employer sa ResiLinked?',
-          answer: 'Sa registration, piliin ang "Employer" o "Both" bilang user type. Mag-provide ng business information at valid business documents para sa verification.'
+          question: 'How do I become an employer on ResiLinked?',
+          answer: 'During registration, choose "Employer" or "Both" as your user type. Provide business information and valid business documents for verification.'
         },
         {
           id: 'cost',
-          question: 'Magkano ang bayad para mag-post ng trabaho?',
-          answer: 'Sa ngayon, libre pa ang pag-post ng trabaho sa ResiLinked. Pwede kayong mag-post ng unlimited job openings.'
+          question: 'How much does it cost to post a job?',
+          answer: 'Currently, posting jobs on ResiLinked is free. You can post unlimited job openings.'
         },
         {
           id: 'manage',
-          question: 'Paano ko ma-manage ang mga applicants?',
-          answer: 'Sa "Employer Dashboard", makikita ninyo ang lahat ng mga nag-apply sa inyong job posts. Pwede ninyong i-contact sila directly gamit ang provided contact information.'
+          question: 'How do I manage applicants?',
+          answer: 'In the "Employer Dashboard", you will see all those who applied to your job posts. You can contact them directly using the provided contact information.'
         }
       ]
     },
     {
       id: 4,
-      category: 'Security at Privacy',
+      category: 'Security and Privacy',
       icon: 'fas fa-shield-alt',
       questions: [
         {
           id: 'safe',
-          question: 'Safe ba ang personal information ko sa ResiLinked?',
-          answer: 'Oo! Ginagamit namin ang industry-standard security measures para protektahan ang inyong data. Hindi namin ibinabahagi ang personal information ninyo sa third parties nang walang permission.'
+          question: 'Is my personal information safe on ResiLinked?',
+          answer: 'Yes! We use industry-standard security measures to protect your data. We do not share your personal information with third parties without permission.'
         },
         {
           id: 'privacy',
-          question: 'Sino ang makakakita ng profile ko?',
-          answer: 'Ang inyong basic profile information ay makikita ng verified employers lang kapag nag-apply kayo sa kanilang job posts. Hindi kayo makikita sa public search.'
+          question: 'Who can see my profile?',
+          answer: 'Your basic profile information is visible only to verified employers when you apply to their job posts. You are not visible in public searches.'
         },
         {
           id: 'report',
-          question: 'Paano ko ma-report ang suspicious activity?',
-          answer: 'Mag-contact sa support team kaagad gamit ang "Contact Support" button. I-provide ang details ng suspicious activity para ma-investigate namin.'
+          question: 'How do I report suspicious activity?',
+          answer: 'Contact the support team immediately using the "Contact Support" button. Provide details of the suspicious activity so we can investigate.'
         }
       ]
     }
@@ -187,14 +187,14 @@ function Help() {
         <div className="main-content">
           <div className="page-header">
             <h1><i className="fas fa-life-ring"></i> Help and Support</h1>
-            <p>Mga madalas na katanungan at suporta para sa ResiLinked</p>
+            <p>Frequently asked questions and support for ResiLinked</p>
           </div>
 
           <div className="search-container">
             <input
               type="text"
               className="search-box"
-              placeholder="🔍 Maghanap ng tanong..."
+              placeholder="🔍 Search questions..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -246,15 +246,15 @@ function Help() {
           {searchTerm && faqData.every(section => filterQuestions(section.questions).length === 0) && (
             <div className="no-results">
               <i className="fas fa-search"></i>
-              <p>Walang nahanap na mga tanong para sa "{searchTerm}"</p>
-              <p>Subukan ninyo ang ibang search terms o mag-contact sa support.</p>
+              <p>No questions found for "{searchTerm}"</p>
+              <p>Try different search terms or contact support.</p>
             </div>
           )}
         </div>
 
         <div className="sidebar">
           <div className="contact-card">
-            <h3><i className="fas fa-headset"></i> Kailangan ng Tulong?</h3>
+            <h3><i className="fas fa-headset"></i> Need Help?</h3>
             <button className="contact-btn" onClick={openSupportModal}>
               <i className="fas fa-envelope"></i>
               Contact Support

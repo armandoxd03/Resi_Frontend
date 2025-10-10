@@ -191,7 +191,7 @@ function Login() {
         <div className="login-header">
           <img src="/logo.png" alt="ResiLinked Logo" className="login-logo" />
           <h1>ResiLinked</h1>
-          <p>Mag-login sa inyong account</p>
+          <p>Log in to your account</p>
         </div>
 
         <form onSubmit={handleSubmit} className="login-form">
@@ -213,7 +213,7 @@ function Login() {
                 onBlur={handleBlur}
                 required
                 autoComplete="email"
-                placeholder="Ilagay ang inyong email"
+                placeholder="Enter your email"
                 className={fieldErrors.email ? 'error' : formData.email && !fieldErrors.email ? 'valid' : ''}
               />
               <div className="input-status">
@@ -248,7 +248,7 @@ function Login() {
                 onBlur={handleBlur}
                 required
                 autoComplete="current-password"
-                placeholder="Ilagay ang inyong password"
+                placeholder="Enter your password"
                 className={fieldErrors.password ? 'error' : formData.password && !fieldErrors.password ? 'valid' : ''}
               />
               <div className="input-status">
@@ -303,21 +303,21 @@ function Login() {
               className="link-button" 
               onClick={handleForgotPassword}
             >
-              Nakalimutan ang password?
+              Forgot password?
             </button>
           </div>
         </form>
 
         <div className="login-footer">
-          <p>Wala kayong account pa?</p>
+          <p>Don't have an account yet?</p>
           <Link to="/register" className="register-link">
-            Mag-register dito
+            Register here
           </Link>
         </div>
 
         <div className="back-home">
           <Link to="/" className="back-home-btn">
-            Bumalik sa Home
+            Back to Home
           </Link>
         </div>
       </div>

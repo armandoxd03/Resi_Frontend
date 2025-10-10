@@ -15,6 +15,7 @@ import SearchWorkers from './components/SearchWorkers'
 import JobsManagement from './components/JobsManagement'
 import EmployeeDashboard from './components/EmployeeDashboard'
 import EmployerDashboard from './components/EmployerDashboard'
+import EditJob from './components/EditJob'
 import AdminDashboard from './components/AdminDashboard'
 import Settings from './components/Settings'
 import Help from './components/Help'
@@ -156,6 +157,12 @@ function App() {
             <Route path="/employer-dashboard" element={
               <ProtectedRoute>
                 <EmployerDashboard />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/edit-job/:jobId" element={
+              <ProtectedRoute>
+                <EditJob />
               </ProtectedRoute>
             } />
             

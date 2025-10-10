@@ -534,7 +534,7 @@ function Profile() {
         </div>
 
         <div className="profile-section">
-          <h2>Mga Kasanayan At Serbisyo</h2>
+          <h2>Skills and Services</h2>
           <div className="profile-skills">
             {profile?.skills && profile.skills.length > 0 ? (
               profile.skills.map((skill, idx) => (
@@ -545,18 +545,18 @@ function Profile() {
         </div>
 
         <div className="profile-section">
-          <h2>Deskripsyon</h2>
+          <h2>Description</h2>
           <div className="profile-bio">{profile?.bio || 'No description provided.'}</div>
         </div>
 
         <div className="profile-section">
-          <h2>Mga Inirerekomendang Trabaho</h2>
+          <h2>Recommended Jobs</h2>
           <div className="profile-recommended-jobs">
             {/* Example jobs, replace with real data if available */}
-            <div className="job-card">Tagalinis<br /><span>42 matching positions</span></div>
-            <div className="job-card">Tagalipat-bahay<br /><span>39 matching positions</span></div>
-            <div className="job-card">Tagapag-alaga ng matatanda<br /><span>28 matching positions</span></div>
-            <div className="job-card">Tagaluto<br /><span>21 matching positions</span></div>
+            <div className="job-card">Cleaner<br /><span>42 matching positions</span></div>
+            <div className="job-card">House Mover<br /><span>39 matching positions</span></div>
+            <div className="job-card">Elderly Caretaker<br /><span>28 matching positions</span></div>
+            <div className="job-card">Cook<br /><span>21 matching positions</span></div>
           </div>
         </div>
 
@@ -565,7 +565,7 @@ function Profile() {
         </div>
 
         <div className="profile-section">
-          <h2>Mga Wika Na Sinasalita</h2>
+          <h2>Languages Spoken</h2>
           <div className="profile-languages">
             <span className="profile-lang-tag">Tagalog</span>
             <span className="profile-lang-tag">English</span>
@@ -573,7 +573,7 @@ function Profile() {
         </div>
 
         <div className="profile-section">
-          <h2>Impormasyon Sa Pakikipag-Ugnayan</h2>
+          <h2>Contact Information</h2>
           <div className="profile-contact">
             <div>{profile?.email}</div>
             <div>{profile?.mobileNo}</div>
@@ -581,7 +581,7 @@ function Profile() {
         </div>
 
         <div className="profile-section">
-          <h2>Rating Ng Manggagawa</h2>
+          <h2>Worker Rating</h2>
           <div className="profile-ratings-carousel">
             {ratings.length > 0 ? ratings.slice(0, 3).map((rating, idx) => (
               <div className="profile-rating-card" key={idx}>

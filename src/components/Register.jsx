@@ -228,7 +228,7 @@ function Register() {
         <div className="register-header">
           <img src="/logo.png" alt="ResiLinked Logo" className="register-logo" style={{ width: '120px', height: '120px', objectFit: 'contain', borderRadius: '24px', marginBottom: '1.5rem', boxShadow: '0 8px 32px rgba(147, 51, 234, 0.3)' }} />
           <h1>ResiLinked</h1>
-          <p>Gumawa ng bagong account</p>
+          <p>Create a new account</p>
         </div>
 
         <form onSubmit={handleSubmit} className="register-form">
@@ -248,7 +248,7 @@ function Register() {
                 value={formData.firstName}
                 onChange={handleInputChange}
                 required
-                placeholder="Unang pangalan"
+                placeholder="First name"
               />
             </div>
             <div className="form-group">
@@ -260,7 +260,7 @@ function Register() {
                 value={formData.lastName}
                 onChange={handleInputChange}
                 required
-                placeholder="Apelyido"
+                placeholder="Last name"
               />
             </div>
           </div>
@@ -288,7 +288,7 @@ function Register() {
                 value={formData.password}
                 onChange={handleInputChange}
                 required
-                placeholder="Gumawa ng password"
+                placeholder="Create a password"
               />
             </div>
             <div className="form-group">
@@ -300,7 +300,7 @@ function Register() {
                 value={formData.confirmPassword}
                 onChange={handleInputChange}
                 required
-                placeholder="Ulitin ang password"
+                placeholder="Repeat the password"
                 style={{
                   borderColor: passwordError === "Passwords match!" ? 'green' : 
                              passwordError === "Passwords do not match!" ? 'red' : ''
@@ -336,7 +336,7 @@ function Register() {
               value={formData.address}
               onChange={handleInputChange}
               required
-              placeholder="Buong address"
+              placeholder="Complete address"
             />
           </div>
 
@@ -439,7 +439,7 @@ function Register() {
                 onChange={handleInputChange}
                 required
               >
-                <option value="">Pumili ng gender</option>
+                <option value="">Select gender</option>
                 <option value="male">Male</option>
                 <option value="female">Female</option>
                 <option value="other">Other</option>
@@ -471,7 +471,7 @@ function Register() {
                 onChange={handleInputChange}
                 required
               >
-                <option value="">Pumili ng ID type</option>
+                <option value="">Select ID type</option>
                 <option value="drivers_license">Driver's License</option>
                 <option value="passport">Passport</option>
                 <option value="national_id">National ID</option>
@@ -550,15 +550,15 @@ function Register() {
         </form>
 
         <div className="register-footer">
-          <p>May account na kayo?</p>
+          <p>Already have an account?</p>
           <Link to="/login" className="login-link">
-            Mag-login dito
+            Login here
           </Link>
         </div>
 
         <div className="back-home">
           <Link to="/" className="back-home-btn">
-            Bumalik sa Home
+            Return to Home
           </Link>
         </div>
       </div>

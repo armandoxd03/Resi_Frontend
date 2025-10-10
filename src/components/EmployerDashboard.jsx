@@ -2,6 +2,7 @@ import { useState, useEffect, useContext } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { AuthContext } from '../context/AuthContext'
 import { AlertContext } from '../context/AlertContext'
+import apiService from '../api'
 
 function EmployerDashboard() {
   const [loading, setLoading] = useState(true)
@@ -16,6 +17,15 @@ function EmployerDashboard() {
   const [applications, setApplications] = useState([])
   const [workers, setWorkers] = useState([])
   const [tabLoading, setTabLoading] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [currentEditJob, setCurrentEditJob] = useState(null)
+  const [editFormData, setEditFormData] = useState({
+    title: '',
+    description: '',
+    price: '',
+    barangay: '',
+    skillsRequired: []
+  })
 
   const { user, hasAccessTo } = useContext(AuthContext)
   const { success, error: showError } = useContext(AlertContext)
@@ -46,44 +56,27 @@ function EmployerDashboard() {
 
   const loadDashboardStats = async () => {
     try {
-      // Load jobs, applications, and ratings in parallel
-      const token = localStorage.getItem('token')
-      
-      const [jobsResponse, applicationsResponse] = await Promise.all([
-        fetch(`${import.meta.env.VITE_API_URL || "https://resilinked-9mf9.vercel.app/api"}/jobs/my-jobs`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }),
-        fetch(`${import.meta.env.VITE_API_URL || "https://resilinked-9mf9.vercel.app/api"}/jobs/my-applications-received`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
-      ])
+      // Load jobs and applications in parallel using apiService
+      const [jobs, receivedApplications] = await Promise.all([
+        apiService.getMyJobs(),
+        apiService.getMyApplicationsReceived()
+      ]);
 
-      let jobs = []
-      let receivedApplications = []
-
-      if (jobsResponse.ok) {
-        jobs = await jobsResponse.json()
-      }
-      
-      if (applicationsResponse.ok) {
-        receivedApplications = await applicationsResponse.json()
-      }
-
-      const activeJobs = jobs.filter(job => job.isOpen !== false).length
+      const activeJobs = jobs.filter(job => job.isOpen !== false).length;
       const totalApplications = receivedApplications.reduce((sum, job) => 
         sum + (job.applicants ? job.applicants.length : 0), 0
-      )
-      const completedJobs = jobs.filter(job => job.completed).length
+      );
+      const completedJobs = jobs.filter(job => job.completed).length;
 
       setStats({
         activeJobs,
         totalApplications,
         completedJobs,
         averageRating: 4.2 // Placeholder - would load from ratings API
-      })
+      });
     } catch (error) {
-      console.error('Error loading dashboard stats:', error)
-      showError('Failed to load dashboard statistics')
+      console.error('Error loading dashboard stats:', error);
+      showError('Failed to load dashboard statistics');
     }
   }
 
@@ -113,63 +106,48 @@ function EmployerDashboard() {
 
   const loadMyJobs = async () => {
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch(`${import.meta.env.VITE_API_URL || "https://resilinked-9mf9.vercel.app/api"}/jobs/my-jobs`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
+      console.log('Loading my jobs from API');
+      // Use apiService to get jobs from backend
+      const jobs = await apiService.getMyJobs();
       
-      if (response.ok) {
-        const jobs = await response.json()
-        setMyJobs(jobs)
+      if (Array.isArray(jobs)) {
+        console.log(`Loaded ${jobs.length} jobs`);
+        setMyJobs(jobs);
       } else {
-        showError('Failed to load your jobs')
+        console.error('Unexpected response format:', jobs);
+        setMyJobs([]);
+        showError('Received invalid data from server');
       }
     } catch (error) {
-      console.error('Error loading my jobs:', error)
-      showError('Error loading your jobs')
+      console.error('Error loading my jobs:', error);
+      showError('Error loading your jobs: ' + (error.message || 'Unknown error'));
+      setMyJobs([]); // Set to empty array on error to avoid undefined issues
     }
   }
 
   const loadApplications = async () => {
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch(`${import.meta.env.VITE_API_URL || "https://resilinked-9mf9.vercel.app/api"}/jobs/my-applications-received`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      
-      if (response.ok) {
-        const apps = await response.json()
-        setApplications(apps)
-      } else {
-        showError('Failed to load applications')
-      }
+      // Use apiService instead of direct fetch
+      const apps = await apiService.getMyApplicationsReceived();
+      setApplications(apps);
     } catch (error) {
-      console.error('Error loading applications:', error)
-      showError('Error loading applications')
+      console.error('Error loading applications:', error);
+      showError('Error loading applications');
     }
   }
 
   const loadWorkers = async () => {
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch(`${import.meta.env.VITE_API_URL || "https://resilinked-9mf9.vercel.app/api"}/users/workers`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      
-      if (response.ok) {
-        const data = await response.json()
-        if (data && data.users) {
-          setWorkers(data.users)
-        } else {
-          setWorkers([])
-        }
+      // Use apiService instead of direct fetch
+      const data = await apiService.getWorkers();
+      if (data && data.users) {
+        setWorkers(data.users);
       } else {
-        // Fallback for demo
-        setWorkers([])
+        setWorkers([]);
       }
     } catch (error) {
-      console.error('Error loading workers:', error)
-      setWorkers([]) // Graceful fallback
+      console.error('Error loading workers:', error);
+      setWorkers([]); // Graceful fallback
     }
   }
 
@@ -178,43 +156,42 @@ function EmployerDashboard() {
     await loadTabContent(tabId)
   }
 
-  const editJob = (jobId) => {
-    // Navigate to edit job page (when implemented)
-    navigate(`/edit-job/${jobId}`)
+  const editJob = (job) => {
+    // Ensure we have a valid job object
+    if (!job || !job._id) {
+      showError('Invalid job selection');
+      return;
+    }
+    
+    // Check if job is already completed
+    if (job.completed) {
+      showError('Completed jobs cannot be edited');
+      return;
+    }
+    
+    console.log('Opening edit modal for job:', job);
+    
+    setCurrentEditJob(job);
+    setEditFormData({
+      title: job.title || '',
+      description: job.description || '',
+      price: job.price || '',
+      barangay: job.barangay || '',
+      skillsRequired: Array.isArray(job.skillsRequired) ? [...job.skillsRequired] : []
+    });
+    setShowEditModal(true);
   }
 
   const completeJob = async (jobId) => {
     if (window.confirm('Mark this job as completed? This will automatically transfer the job income to the worker\'s active financial goal.')) {
       try {
-        const token = localStorage.getItem('token');
+        // Use apiService instead of direct fetch
+        const result = await apiService.completeJob(jobId);
         
-        if (!token) {
-          console.error('No authentication token found');
-          showError('Authorization failed. Please log in again.');
-          return;
-        }
-        
-        const apiUrl = import.meta.env.VITE_API_URL || "https://resi-backend-1.onrender.com/api";
-        const endpoint = `${apiUrl}/jobs/${jobId}/complete`;
-        
-        const response = await fetch(endpoint, {
-          method: 'PUT',
-          headers: { 
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        const responseData = await response.json();
-        
-        if (response.ok) {
-          success(responseData.alert || 'Job marked as completed successfully');
-          // Refresh the jobs list and dashboard stats
-          loadMyJobs();
-          loadDashboardStats();
-        } else {
-          showError(`Failed to complete job: ${responseData.message || responseData.alert || 'Unknown error'}`);
-        }
+        success(result.alert || 'Job marked as completed successfully');
+        // Refresh the jobs list and dashboard stats
+        loadMyJobs();
+        loadDashboardStats();
       } catch (error) {
         console.error('Error completing job:', error);
         showError(`Error completing job: ${error.message}`);
@@ -225,45 +202,23 @@ function EmployerDashboard() {
   const deleteJob = async (jobId) => {
     if (window.confirm('Are you sure you want to delete this job?')) {
       try {
+        setLoading(true);
         console.log('Deleting job with ID:', jobId);
-        const token = localStorage.getItem('token');
         
-        if (!token) {
-          console.error('No authentication token found');
-          showError('Authorization failed. Please log in again.');
-          return;
-        }
+        // Use apiService to connect with backend
+        const result = await apiService.deleteJob(jobId);
         
-        const apiUrl = import.meta.env.VITE_API_URL || "https://resi-backend-1.onrender.com/api";
-        const endpoint = `${apiUrl}/jobs/${jobId}`;
-        console.log('DELETE request to endpoint:', endpoint);
+        console.log('Delete job response:', result);
         
-        const response = await fetch(endpoint, {
-          method: 'DELETE',
-          headers: { 
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        const responseData = await response.json();
-        console.log('Delete job response:', {
-          status: response.status,
-          ok: response.ok,
-          data: responseData
-        });
-        
-        if (response.ok) {
-          success('Job deleted successfully');
-          // Refresh the jobs list and dashboard stats
-          loadMyJobs();
-          loadDashboardStats();
-        } else {
-          showError(`Failed to delete job: ${responseData.message || responseData.alert || 'Unknown error'}`);
-        }
+        success(result.alert || 'Job deleted successfully');
+        // Refresh the jobs list and dashboard stats
+        await loadMyJobs();
+        await loadDashboardStats();
       } catch (error) {
         console.error('Error deleting job:', error);
         showError(`Error deleting job: ${error.message}`);
+      } finally {
+        setLoading(false);
       }
     }
   }
@@ -283,47 +238,121 @@ function EmployerDashboard() {
         return;
       }
 
-      const token = localStorage.getItem('token')
-      let endpoint, method
+      let result;
       
       if (action === 'accept') {
-        endpoint = `${import.meta.env.VITE_API_URL || "https://resilinked-9mf9.vercel.app/api"}/jobs/${jobId}/assign`
-        method = 'POST'
+        // Use apiService instead of direct fetch
+        result = await apiService.assignWorker(jobId, userId);
       } else if (action === 'reject') {
-        endpoint = `${import.meta.env.VITE_API_URL || "https://resilinked-9mf9.vercel.app/api"}/jobs/${jobId}/reject`
-        method = 'POST'
+        // Use apiService instead of direct fetch
+        result = await apiService.rejectApplication(jobId, userId);
       }
       
-      console.log(`Making ${method} request to ${endpoint} with userId: ${userId}`);
+      console.log(`Response for ${action}:`, result);
       
-      const response = await fetch(endpoint, {
-        method,
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ userId })
-      })
+      success(`Application ${action}ed successfully`);
+      loadApplications();
+      // Also reload the jobs to reflect changes
+      loadMyJobs();
+      loadDashboardStats();
+    } catch (error) {
+      console.error(`Error ${action}ing application:`, error);
+      showError(`Error ${action}ing application: ${error.message}`);
+    }
+  }
+  
+  const handleEditFormChange = (e) => {
+    const { name, value } = e.target;
+    setEditFormData({
+      ...editFormData,
+      [name]: name === 'price' ? parseFloat(value) || value : value
+    });
+  }
+  
+  const handleSkillInput = (e) => {
+    if (e.key === 'Enter' && e.target.value.trim()) {
+      e.preventDefault();
+      const newSkill = e.target.value.trim();
       
-      const responseData = await response.json();
-      console.log(`Response for ${action}:`, {
-        status: response.status,
-        ok: response.ok,
-        data: responseData
+      // Check if skill already exists
+      if (editFormData.skillsRequired.includes(newSkill)) {
+        // Indicate duplicate skill without showing a full error
+        e.target.classList.add('input-error');
+        setTimeout(() => {
+          e.target.classList.remove('input-error');
+        }, 1000);
+        return;
+      }
+      
+      // Limit number of skills
+      if (editFormData.skillsRequired.length >= 10) {
+        showError('You can add up to 10 skills maximum');
+        return;
+      }
+      
+      // Add the new skill
+      setEditFormData({
+        ...editFormData,
+        skillsRequired: [...editFormData.skillsRequired, newSkill]
       });
       
-      if (response.ok) {
-        success(`Application ${action}ed successfully`)
-        loadApplications()
-        // Also reload the jobs to reflect changes
-        loadMyJobs()
-        loadDashboardStats()
-      } else {
-        showError(`Failed to ${action} application: ${responseData.message || responseData.alert || 'Unknown error'}`)
-      }
+      // Clear input
+      e.target.value = '';
+    }
+  }
+  
+  const removeSkill = (skillToRemove) => {
+    setEditFormData({
+      ...editFormData,
+      skillsRequired: editFormData.skillsRequired.filter(skill => skill !== skillToRemove)
+    });
+  }
+  
+  const handleSaveJob = async (e) => {
+    e.preventDefault();
+    
+    if (!currentEditJob || !currentEditJob._id) {
+      showError('Invalid job data');
+      return;
+    }
+    
+    // Form validation
+    if (!editFormData.title || !editFormData.description || !editFormData.price || !editFormData.barangay) {
+      showError('Please fill in all required fields');
+      return;
+    }
+    
+    // Price validation
+    const price = parseFloat(editFormData.price);
+    if (isNaN(price) || price <= 0) {
+      showError('Please enter a valid price');
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      console.log('Saving job edit:', {
+        jobId: currentEditJob._id,
+        updates: editFormData
+      });
+      
+      // Make API call to update job using apiService
+      const result = await apiService.editJob(currentEditJob._id, {
+        ...editFormData,
+        price: parseFloat(editFormData.price)
+      });
+      
+      success(result.alert || "Job updated successfully!");
+      setShowEditModal(false);
+      
+      // Refresh the jobs list
+      await loadMyJobs();
+      await loadDashboardStats();
     } catch (error) {
-      console.error(`Error ${action}ing application:`, error)
-      showError(`Error ${action}ing application: ${error.message}`)
+      console.error('Error updating job:', error);
+      showError(`Error updating job: ${error.message || 'Failed to update job'}`);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -463,7 +492,7 @@ function EmployerDashboard() {
                       <div className="job-actions">
                         <button 
                           className="btn secondary"
-                          onClick={() => editJob(job._id)}
+                          onClick={() => editJob(job)}
                         >
                           Edit
                         </button>
@@ -578,7 +607,307 @@ function EmployerDashboard() {
         )}
       </div>
 
+      {/* Edit Job Modal */}
+      {showEditModal && (
+        <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Edit Job</h2>
+              <button 
+                className="modal-close"
+                onClick={() => setShowEditModal(false)}
+              >
+                &times;
+              </button>
+            </div>
+            
+            <form onSubmit={handleSaveJob} className="edit-job-form">
+              <div className="form-group">
+                <label htmlFor="title">Job Title *</label>
+                <input
+                  type="text"
+                  id="title"
+                  name="title"
+                  value={editFormData.title}
+                  onChange={handleEditFormChange}
+                  required
+                  placeholder="e.g., House Cleaning, Plumbing Repair"
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="description">Job Description *</label>
+                <textarea
+                  id="description"
+                  name="description"
+                  value={editFormData.description}
+                  onChange={handleEditFormChange}
+                  required
+                  rows="4"
+                  placeholder="Describe the job in detail..."
+                ></textarea>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="price">Price (₱) *</label>
+                  <input
+                    type="number"
+                    id="price"
+                    name="price"
+                    value={editFormData.price}
+                    onChange={handleEditFormChange}
+                    required
+                    min="1"
+                    step="1"
+                    placeholder="e.g., 500"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="barangay">Barangay *</label>
+                  <input
+                    type="text"
+                    id="barangay"
+                    name="barangay"
+                    value={editFormData.barangay}
+                    onChange={handleEditFormChange}
+                    required
+                    placeholder="e.g., San Antonio"
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Skills Required</label>
+                <div className="skills-input">
+                  <div className="skills-input-container">
+                    <input
+                      type="text"
+                      id="skillInput"
+                      placeholder="Type skill and press Enter or Add"
+                      onKeyDown={handleSkillInput}
+                    />
+                    <button 
+                      type="button" 
+                      className="add-skill-btn"
+                      onClick={() => {
+                        const input = document.getElementById('skillInput');
+                        if (input && input.value.trim()) {
+                          const newSkill = input.value.trim();
+                          
+                          // Check if skill already exists
+                          if (editFormData.skillsRequired.includes(newSkill)) {
+                            input.classList.add('input-error');
+                            setTimeout(() => {
+                              input.classList.remove('input-error');
+                            }, 1000);
+                            return;
+                          }
+                          
+                          // Limit number of skills
+                          if (editFormData.skillsRequired.length >= 10) {
+                            showError('You can add up to 10 skills maximum');
+                            return;
+                          }
+                          
+                          setEditFormData({
+                            ...editFormData,
+                            skillsRequired: [...editFormData.skillsRequired, newSkill]
+                          });
+                          input.value = '';
+                        }
+                      }}
+                    >
+                      Add
+                    </button>
+                  </div>
+                  <div className="skills-tags">
+                    {editFormData.skillsRequired && editFormData.skillsRequired.map((skill, index) => (
+                      <div key={index} className="skill-tag">
+                        {skill}
+                        <button 
+                          type="button" 
+                          className="remove-skill"
+                          onClick={() => removeSkill(skill)}
+                        >
+                          &times;
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  {editFormData.skillsRequired && editFormData.skillsRequired.length > 0 && (
+                    <small className="skill-count">{editFormData.skillsRequired.length} of 10 skills added</small>
+                  )}
+                </div>
+              </div>
+
+              <div className="modal-actions">
+                <button 
+                  type="button" 
+                  className="btn secondary" 
+                  onClick={() => setShowEditModal(false)}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  className="btn primary" 
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
   <style>{`
+        /* Modal Styles */
+        .modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background-color: rgba(0, 0, 0, 0.6);
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          z-index: 1000;
+          padding: 1rem;
+        }
+        
+        .modal-content {
+          background-color: white;
+          border-radius: 12px;
+          width: 100%;
+          max-width: 800px;
+          max-height: 90vh;
+          overflow-y: auto;
+          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+          padding: 2rem;
+        }
+        
+        .modal-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 1.5rem;
+          padding-bottom: 1rem;
+          border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .modal-header h2 {
+          margin: 0;
+          color: #2b6cb0;
+        }
+        
+        .modal-close {
+          background: none;
+          border: none;
+          font-size: 1.5rem;
+          color: #718096;
+          cursor: pointer;
+        }
+        
+        .modal-close:hover {
+          color: #2b6cb0;
+        }
+        
+        .edit-job-form {
+          display: flex;
+          flex-direction: column;
+          gap: 1.5rem;
+        }
+        
+        .modal-actions {
+          display: flex;
+          justify-content: flex-end;
+          gap: 1rem;
+          margin-top: 1.5rem;
+        }
+        
+        .skills-input {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+        }
+        
+        .skills-input-container {
+          display: flex;
+          gap: 0.5rem;
+        }
+        
+        .skills-input-container input {
+          flex: 1;
+        }
+        
+        .skills-tags {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.5rem;
+          margin-top: 0.5rem;
+        }
+        
+        .add-skill-btn {
+          background: #2b6cb0;
+          color: white;
+          border: none;
+          padding: 0.5rem 1rem;
+          border-radius: 6px;
+          cursor: pointer;
+          white-space: nowrap;
+        }
+        
+        .add-skill-btn:hover {
+          background: #2c5282;
+        }
+        
+        .input-error {
+          border-color: #e53e3e !important;
+          animation: shake 0.5s;
+        }
+        
+        .skill-count {
+          color: #718096;
+          font-size: 0.8rem;
+          margin-top: 0.5rem;
+        }
+        
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+          20%, 40%, 60%, 80% { transform: translateX(5px); }
+        }
+        
+        .skill-tag {
+          background: #e2e8f0;
+          color: #2d3748;
+          padding: 0.25rem 0.5rem;
+          border-radius: 12px;
+          font-size: 0.9rem;
+          display: flex;
+          align-items: center;
+          gap: 0.25rem;
+        }
+        
+        .remove-skill {
+          background: none;
+          border: none;
+          color: #4a5568;
+          cursor: pointer;
+          font-size: 1rem;
+          padding: 0 0.25rem;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 50%;
+        }
+        
+        .remove-skill:hover {
+          color: #e53e3e;
+        }
         .dashboard-container {
           max-width: 1200px;
           margin: 0 auto;

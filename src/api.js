@@ -415,6 +415,30 @@ class ApiService {
       method: "DELETE",
     });
   }
+  
+  async editJob(jobId, jobData) {
+    try {
+      console.log('Making editJob API call:', {
+        jobId,
+        endpoint: `/jobs/${jobId}`,
+        hasToken: !!localStorage.getItem("token")
+      });
+      
+      const result = await this.request(`/jobs/${jobId}`, {
+        method: "PUT",
+        body: jobData,
+      });
+      
+      console.log('Edit job API response:', result);
+      return result;
+    } catch (error) {
+      console.error('Error in editJob API call:', error);
+      if (error.message.includes('403') || error.message.includes('Forbidden')) {
+        throw new Error('Not authorized: You can only edit your own jobs');
+      }
+      throw error;
+    }
+  }
 
   async assignWorker(jobId, userId) {
     return this.request(`/jobs/${jobId}/assign`, {
