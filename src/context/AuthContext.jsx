@@ -36,80 +36,123 @@ export function AuthProvider({ children }) {
     }
 
     try {
+      // Create a controller to abort the request if it takes too long
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+      
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://resilinked-9mf9.vercel.app/api'}/auth/verify`, {
         headers: { 
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+          'Content-Type': 'application/json',
+          // Add caching headers
+          'Cache-Control': 'max-age=900' // Tell browsers to cache for 15 minutes
+        },
+        signal: controller.signal
       })
+      
+      // Clear the timeout
+      clearTimeout(timeoutId);
       
       if (response.ok) {
         const responseData = await response.json()
-        const parsedUserData = JSON.parse(userData)
         
-        // Update user data with fresh info if available
-        const updatedUserData = {
-          userId: parsedUserData.userId || responseData.user?.id || responseData.user?._id,
-          userType: parsedUserData.userType || responseData.user?.userType,
-          isVerified: parsedUserData.isVerified || responseData.user?.isVerified,
-          firstName: parsedUserData.firstName || responseData.user?.firstName,
-          lastName: parsedUserData.lastName || responseData.user?.lastName
+        // Don't update local data if the response indicates it's cached server-side
+        // This prevents unnecessary state updates
+        if (!responseData.cached) {
+          try {
+            const parsedUserData = JSON.parse(userData)
+            
+            // Update user data with fresh info if available
+            const updatedUserData = {
+              userId: parsedUserData.userId || responseData.user?.id || responseData.user?._id,
+              userType: parsedUserData.userType || responseData.user?.userType,
+              isVerified: parsedUserData.isVerified || responseData.user?.isVerified,
+              firstName: parsedUserData.firstName || responseData.user?.firstName,
+              lastName: parsedUserData.lastName || responseData.user?.lastName
+            }
+            
+            localStorage.setItem('userData', JSON.stringify(updatedUserData))
+            setUser(updatedUserData)
+          } catch (parseError) {
+            // If we can't parse the stored data, just continue with authentication
+            console.error('Error parsing stored user data:', parseError)
+          }
         }
         
-        localStorage.setItem('userData', JSON.stringify(updatedUserData))
-        setUser(updatedUserData)
         setIsAuthenticated(true)
         return true
       } else {
-        // Set DEBUG_AUTH to true to show authentication-related logs
-        const DEBUG_AUTH = false;
-        if (DEBUG_AUTH) {
-          console.log('Token verification failed')
+        // Don't log in production
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('Token verification failed with status:', response.status)
         }
-        clearAuthData()
+        
+        // Only clear auth data for auth errors, not for server errors
+        if (response.status === 401 || response.status === 403) {
+          clearAuthData()
+        }
         return false
       }
     } catch (error) {
-      // Keep error logging for debugging
-      console.error('Token verification error:', error)
-      // Don't clear auth data on network errors
+      // Don't log in production unless it's not a timeout
+      if (process.env.NODE_ENV !== 'production' && error.name !== 'AbortError') {
+        console.error('Token verification error:', error)
+      }
+      
+      // Don't clear auth data on network errors or timeouts
+      // This prevents users from being logged out due to temporary network issues
       return null
     }
   }, [clearAuthData])
 
   useEffect(() => {
     const initAuth = async () => {
-      // Set DEBUG_AUTH to true to show authentication-related logs
-      const DEBUG_AUTH = true;
+      // Set DEBUG_AUTH to false in production
+      const DEBUG_AUTH = false;
       const token = localStorage.getItem('token')
       const userData = localStorage.getItem('userData')
+      const lastVerified = localStorage.getItem('lastTokenVerification')
       
       if (DEBUG_AUTH) {
-        console.log('AuthContext initialization:', { token: !!token, userData })
+        console.log('AuthContext initialization:', { 
+          token: !!token, 
+          hasUserData: !!userData,
+          lastVerified
+        })
       }
       
       if (token && userData) {
         try {
           const parsedUserData = JSON.parse(userData)
-          if (DEBUG_AUTH) {
-            console.log('Parsed user data:', parsedUserData)
-          }
           setUser(parsedUserData)
           setIsAuthenticated(true)
-          if (DEBUG_AUTH) {
-            console.log('✅ Authentication state set to true')
+          
+          // Only verify on startup if it's been more than 15 minutes since last verification
+          const now = Date.now()
+          const lastVerifiedTime = parseInt(lastVerified || '0')
+          const fifteenMinutes = 15 * 60 * 1000
+          
+          if (!lastVerified || (now - lastVerifiedTime > fifteenMinutes)) {
+            if (DEBUG_AUTH) {
+              console.log('Verifying token on startup (last verified:', new Date(lastVerifiedTime).toLocaleTimeString(), ')')
+            }
+            
+            // Don't wait for verification to complete
+            verifyToken().then(result => {
+              if (result) {
+                localStorage.setItem('lastTokenVerification', now.toString())
+              }
+            }).catch(err => {
+              console.error('Background token verification failed:', err);
+            });
+          } else if (DEBUG_AUTH) {
+            console.log('Skipping verification, token verified recently at:', new Date(lastVerifiedTime).toLocaleTimeString())
           }
           
-          // Verify token in background but don't wait for it
-          verifyToken().catch(err => {
-            console.error('Background token verification failed:', err);
-          });
         } catch (error) {
           console.error('Error parsing user data:', error)
           clearAuthData()
         }
-      } else if (DEBUG_AUTH) {
-        console.log('No token or userData found in localStorage')
       }
       
       // Set loading to false whether we have auth data or not
@@ -118,12 +161,38 @@ export function AuthProvider({ children }) {
 
     initAuth()
 
-    // Set up periodic token verification
+    // Set up periodic token verification with progressive backoff
+    // Start with 15 minute interval, then double it up to 30 minutes max
+    let verificationInterval = 15 * 60 * 1000 // Start with 15 minutes
+    const maxInterval = 30 * 60 * 1000 // Max 30 minutes
+    let consecutiveVerifications = 0
+    
     const interval = setInterval(() => {
       if (isAuthenticated) {
-        verifyToken()
+        const lastVerified = localStorage.getItem('lastTokenVerification')
+        const now = Date.now()
+        const lastVerifiedTime = parseInt(lastVerified || '0')
+        
+        // Only verify if the current interval time has passed
+        if (!lastVerified || (now - lastVerifiedTime > verificationInterval)) {
+          verifyToken().then(result => {
+            if (result) {
+              localStorage.setItem('lastTokenVerification', now.toString())
+              consecutiveVerifications++
+              
+              // Increase interval for next verification if we've had multiple successful verifications
+              if (consecutiveVerifications > 2 && verificationInterval < maxInterval) {
+                verificationInterval = Math.min(verificationInterval * 2, maxInterval)
+              }
+            } else {
+              // If verification failed, reset to more frequent checks
+              verificationInterval = 15 * 60 * 1000
+              consecutiveVerifications = 0
+            }
+          })
+        }
       }
-    }, 30000) // Check every 30 seconds
+    }, 60000) // Check every minute if we should verify based on our dynamic interval
 
     return () => clearInterval(interval)
   }, [isAuthenticated, verifyToken, clearAuthData])

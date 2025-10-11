@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "VITE_API_URL=https://resi-backend-1.onrender.com/api vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },

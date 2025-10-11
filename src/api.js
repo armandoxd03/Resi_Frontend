@@ -237,6 +237,10 @@ class ApiService {
   async getProfile(userId) {
     return this.request(`/users/${userId}`);
   }
+  
+  async getUserRatings(userId) {
+    return this.request(`/ratings/${userId}`);
+  }
 
   async updateProfile(updates) {
     try {
@@ -453,6 +457,47 @@ class ApiService {
       body: { userId },
     });
   }
+  
+  async inviteWorker(jobId, workerId) {
+    console.log('Sending invitation request:', { jobId, workerId });
+    
+    if (!jobId || !workerId) {
+      console.error('Missing required parameters for invitation');
+      throw new Error('Missing jobId or workerId');
+    }
+    
+    try {
+      // Verify the job exists first
+      try {
+        await this.getJob(jobId);
+      } catch (jobError) {
+        console.error('Job verification failed:', jobError);
+        throw new Error('Job not found or no longer available');
+      }
+      
+      // Send the invitation
+      const result = await this.request(`/jobs/${jobId}/invite`, {
+        method: "POST",
+        body: { workerId },
+      });
+      
+      console.log('Invitation response:', result);
+      return result;
+    } catch (error) {
+      console.error('Invitation API error:', error);
+      
+      // Provide more helpful error messages
+      if (error.message.includes('404')) {
+        throw new Error('Job not found. It may have been deleted or closed.');
+      } else if (error.message.includes('403')) {
+        throw new Error('Not authorized to send this invitation.');
+      } else if (error.message.includes('400')) {
+        throw new Error('Invalid request. Please check worker and job details.');
+      } else {
+        throw error;
+      }
+    }
+  }
 
   async updateApplicantStatus(jobId, userId, status) {
     return this.request(`/jobs/${jobId}/applicants/${userId}`, {
@@ -494,9 +539,10 @@ class ApiService {
     });
   }
   
-  async setActiveGoal(goalId) {
+  async setActiveGoal(goalId, isPriority = false) {
     return this.request(`/goals/${goalId}/activate`, {
-      method: "POST"
+      method: "POST",
+      body: { isPriority }
     });
   }
 

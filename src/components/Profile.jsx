@@ -8,9 +8,22 @@ import GoalManagement from './GoalManagement'
 function Profile() {
   const [profile, setProfile] = useState(null)
   const [ratings, setRatings] = useState([])
+  const [recommendedJobs, setRecommendedJobs] = useState([])
+  const [recommendedWorkers, setRecommendedWorkers] = useState([])
+  const [loadingJobs, setLoadingJobs] = useState(false)
+  const [loadingWorkers, setLoadingWorkers] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showEditModal, setShowEditModal] = useState(false)
+  const [selectedJob, setSelectedJob] = useState(null)
+  const [showJobModal, setShowJobModal] = useState(false)
+  const [applyingToJob, setApplyingToJob] = useState(false)
+  const [applicationStatus, setApplicationStatus] = useState(null)
+  const [selectedWorker, setSelectedWorker] = useState(null)
+  const [showWorkerModal, setShowWorkerModal] = useState(false)
+  const [myJobs, setMyJobs] = useState([])
+  const [invitingWorker, setInvitingWorker] = useState(false)
+  const [inviteStatus, setInviteStatus] = useState(null)
   const [editFormData, setEditFormData] = useState({
     firstName: '',
     lastName: '',
@@ -36,8 +49,301 @@ function Profile() {
   useEffect(() => {
     if (profile?._id) {
       loadRatings()
+      
+      // Load recommendations based on user type
+      if (profile.userType === 'employee' || profile.userType === 'both') {
+        loadRecommendedJobs()
+      }
+      
+      if (profile.userType === 'employer' || profile.userType === 'both') {
+        loadRecommendedWorkers()
+      }
     }
   }, [profile?._id])
+
+  const loadRecommendedJobs = async () => {
+    try {
+      setLoadingJobs(true)
+      
+      // Use the job matching engine API endpoint
+      const matchesResponse = await apiService.getMyMatches()
+      console.log('Recommended jobs data:', matchesResponse)
+      
+      // Get user applications to check which jobs the user has already applied to
+      let applications = []
+      try {
+        const applicationsResponse = await apiService.getMyApplications()
+        console.log('User applications:', applicationsResponse)
+        
+        if (applicationsResponse.activeApplications) {
+          applications = applicationsResponse.activeApplications
+        } else if (Array.isArray(applicationsResponse)) {
+          applications = applicationsResponse
+        }
+      } catch (appErr) {
+        console.error('Error fetching user applications:', appErr)
+      }
+      
+      // Mark jobs that the user has already applied to
+      const jobsWithApplicationStatus = (matchesResponse.jobs || []).map(job => {
+        const hasApplied = applications.some(app => app._id === job._id)
+        return {
+          ...job,
+          alreadyApplied: hasApplied
+        }
+      })
+      
+      // Limit to 3 jobs
+      const limitedJobs = jobsWithApplicationStatus.slice(0, 3)
+      
+      setRecommendedJobs(limitedJobs)
+    } catch (err) {
+      console.error('Failed to load recommended jobs:', err)
+    } finally {
+      setLoadingJobs(false)
+    }
+  }
+  
+  const handleJobClick = (job) => {
+    setSelectedJob(job)
+    setShowJobModal(true)
+    setApplicationStatus(null) // Reset application status
+  }
+  
+  const handleCloseJobModal = () => {
+    setShowJobModal(false)
+    setSelectedJob(null)
+    setApplicationStatus(null)
+    setApplyingToJob(false)
+  }
+  
+  const handleApplyToJob = async (jobId) => {
+    if (!profile || applyingToJob) return
+    
+    try {
+      setApplyingToJob(true)
+      const response = await apiService.applyToJob(jobId)
+      console.log('Job application response:', response)
+      
+      // Show success message
+      setApplicationStatus({
+        success: true,
+        message: response.alert || 'Application submitted successfully!'
+      })
+      
+      // Update the local jobs list to reflect the application
+      setRecommendedJobs(jobs => jobs.map(job => 
+        job._id === jobId 
+          ? {...job, alreadyApplied: true} 
+          : job
+      ))
+      
+      success('Application submitted successfully!')
+    } catch (err) {
+      console.error('Error applying to job:', err)
+      setApplicationStatus({
+        success: false,
+        message: err.message || 'Failed to apply to this job. Please try again.'
+      })
+      
+      showError(err.message || 'Failed to apply to this job')
+    } finally {
+      setApplyingToJob(false)
+    }
+  }
+  
+  const handleWorkerClick = async (worker) => {
+    setSelectedWorker(worker)
+    setShowWorkerModal(true)
+    setInviteStatus(null) // Reset invite status
+    
+    // Load worker's ratings for the modal
+    try {
+      const ratingsResponse = await apiService.getUserRatings(worker._id);
+      if (ratingsResponse && ratingsResponse.ratings) {
+        // Update worker with detailed ratings data
+        setSelectedWorker(prevWorker => ({
+          ...prevWorker,
+          detailedRatings: ratingsResponse.ratings.slice(0, 3), // Get first 3 ratings for display
+          rating: ratingsResponse.stats?.averageRating || 
+                (ratingsResponse.ratings.length > 0 
+                  ? ratingsResponse.ratings.reduce((sum, r) => sum + r.rating, 0) / ratingsResponse.ratings.length
+                  : 0)
+        }));
+      }
+    } catch (err) {
+      console.error("Failed to load worker's ratings:", err);
+    }
+  }
+  
+  const handleCloseWorkerModal = () => {
+    setShowWorkerModal(false)
+    setSelectedWorker(null)
+    setInviteStatus(null)
+    setInvitingWorker(false)
+  }
+  
+  const handleInviteWorker = async (workerId, jobId) => {
+    if (!profile || invitingWorker) return
+    
+    try {
+      setInvitingWorker(true)
+      const response = await apiService.inviteWorker(jobId, workerId)
+      console.log('Worker invitation response:', response)
+      
+      // Show success message
+      setInviteStatus({
+        success: true,
+        message: response.alert || 'Invitation sent successfully!'
+      })
+      
+      success('Worker invited successfully!')
+    } catch (err) {
+      console.error('Error inviting worker:', err)
+      setInviteStatus({
+        success: false,
+        message: err.message || 'Failed to invite this worker. Please try again.'
+      })
+      
+      showError(err.message || 'Failed to invite worker')
+    } finally {
+      setInvitingWorker(false)
+    }
+  }
+  
+  const loadRecommendedWorkers = async () => {
+    try {
+      setLoadingWorkers(true)
+      
+      // First try to get top-rated workers
+      const topRatedResponse = await apiService.getTopRated()
+      console.log('Top-rated workers data:', topRatedResponse)
+      
+      // The API returns workers directly in the response
+      let workers = Array.isArray(topRatedResponse) ? topRatedResponse : []
+      
+      // If no top-rated workers found, fall back to regular worker recommendations
+      if (workers.length === 0) {
+        console.log('No top-rated workers found, fetching regular workers instead')
+        try {
+          // Get regular workers as a fallback, limit to 3
+          const regularWorkersResponse = await apiService.getWorkers({ limit: 3 })
+          console.log('Regular workers data:', regularWorkersResponse)
+          
+          // The backend returns users in the 'users' property
+          if (regularWorkersResponse.users && regularWorkersResponse.users.length > 0) {
+            workers = regularWorkersResponse.users
+          }
+        } catch (fallbackErr) {
+          console.error('Failed to load fallback regular workers:', fallbackErr)
+        }
+      }
+      
+      if (workers.length === 0) {
+        console.log('No workers found from either source')
+        setRecommendedWorkers([])
+        return
+      }
+      
+      console.log('Processing workers data:', workers)
+      
+      // Limit to 3 workers
+      workers = workers.slice(0, 3)
+      
+      // Get ratings for each worker, similar to how EmployerDashboard does it
+      const workersWithRatings = await Promise.all(
+        workers.map(async (worker) => {
+          try {
+            const ratingsResponse = await apiService.getUserRatings(worker._id);
+            const avgRating = ratingsResponse.stats?.averageRating || 
+                             (ratingsResponse.ratings && ratingsResponse.ratings.length > 0 
+                              ? ratingsResponse.ratings.reduce((sum, r) => sum + r.rating, 0) / ratingsResponse.ratings.length
+                              : 0);
+            
+            return {
+              ...worker,
+              rating: parseFloat(avgRating) || 0,
+              ratingCount: ratingsResponse.ratings ? ratingsResponse.ratings.length : 0,
+              isTopRated: Boolean(worker.averageRating)
+            };
+          } catch (err) {
+            console.log(`Could not fetch ratings for worker ${worker._id}:`, err);
+            return {
+              ...worker,
+              rating: worker.averageRating || 0,
+              ratingCount: 0,
+              isTopRated: Boolean(worker.averageRating)
+            };
+          }
+        })
+      );
+      
+      console.log('Workers with ratings:', workersWithRatings);
+      setRecommendedWorkers(workersWithRatings);
+      
+      // If user is an employer or both, load their jobs for invitations
+      if (profile.userType === 'employer' || profile.userType === 'both') {
+        try {
+          const jobsResponse = await apiService.getMyJobs();
+          console.log('User jobs for invitations:', jobsResponse);
+          
+          // Filter to only open jobs
+          const openJobs = Array.isArray(jobsResponse) 
+            ? jobsResponse.filter(job => job.isOpen === true)
+            : [];
+          
+          setMyJobs(openJobs);
+        } catch (jobsErr) {
+          console.error('Failed to load user jobs:', jobsErr);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load workers:', err)
+      
+      // If the top-rated API call fails entirely, try to get regular workers
+      try {
+        console.log('Top-rated API failed, trying to get regular workers')
+        const regularResponse = await apiService.getWorkers({ limit: 3 })
+        console.log('Regular workers response:', regularResponse);
+        
+        // The backend returns users in the 'users' property
+        const regularWorkers = regularResponse.users || []
+        
+        if (regularWorkers.length > 0) {
+          // Process workers with ratings
+          const workersWithRatings = await Promise.all(
+            regularWorkers.map(async (worker) => {
+              try {
+                const ratingsResponse = await apiService.getUserRatings(worker._id);
+                return {
+                  ...worker,
+                  rating: parseFloat(ratingsResponse.stats?.averageRating) || 0,
+                  ratingCount: ratingsResponse.ratings ? ratingsResponse.ratings.length : 0,
+                  isTopRated: false
+                };
+              } catch (err) {
+                return {
+                  ...worker,
+                  rating: 0,
+                  ratingCount: 0,
+                  isTopRated: false
+                };
+              }
+            })
+          );
+          
+          setRecommendedWorkers(workersWithRatings);
+        } else {
+          setRecommendedWorkers([]);
+        }
+      } catch (fallbackErr) {
+        console.error('Also failed to get regular workers:', fallbackErr);
+        setRecommendedWorkers([]);
+      }
+    } finally {
+      setLoadingWorkers(false)
+    }
+  }
 
   const loadProfile = async () => {
     try {
@@ -549,16 +855,150 @@ function Profile() {
           <div className="profile-bio">{profile?.bio || 'No description provided.'}</div>
         </div>
 
-        <div className="profile-section">
-          <h2>Recommended Jobs</h2>
-          <div className="profile-recommended-jobs">
-            {/* Example jobs, replace with real data if available */}
-            <div className="job-card">Cleaner<br /><span>42 matching positions</span></div>
-            <div className="job-card">House Mover<br /><span>39 matching positions</span></div>
-            <div className="job-card">Elderly Caretaker<br /><span>28 matching positions</span></div>
-            <div className="job-card">Cook<br /><span>21 matching positions</span></div>
+        {/* Show recommended jobs if the user is an employee or both */}
+        {(profile?.userType === 'employee' || profile?.userType === 'both') && (
+          <div className="profile-section">
+            <div className="section-header-with-actions">
+              <h2>Recommended Jobs</h2>
+              <Link to="/search-jobs" className="view-more-btn">View More Jobs</Link>
+            </div>
+            <div className="profile-recommended-jobs">
+              {loadingJobs ? (
+                <div className="loading-jobs">Loading recommended jobs...</div>
+              ) : recommendedJobs.length > 0 ? (
+                recommendedJobs.map((job, index) => (
+                  <div 
+                    className="job-card" 
+                    key={job._id || index} 
+                    onClick={() => handleJobClick(job)}
+                    role="button"
+                    tabIndex={0}
+                  >
+                    <div className="job-title">{job.title}</div>
+                    <div className="job-details">
+                      <span className="job-price">₱{job.price}</span>
+                      <span className="job-match">
+                        {job.skillMatchPercentage ? 
+                          `${Math.round(job.skillMatchPercentage)}% match` : 
+                          'Suggested for you'}
+                      </span>
+                    </div>
+                    {job.matchingSkills && job.matchingSkills.length > 0 && (
+                      <div className="job-skills">
+                        Skills: {job.matchingSkills.slice(0, 2).join(", ")}
+                        {job.matchingSkills.length > 2 && "..."}
+                      </div>
+                    )}
+                    <div className="job-location">
+                      {job.locationMatch ? 
+                        <span className="location-match">In your barangay</span> : 
+                        job.barangay
+                      }
+                    </div>
+                    <div className="job-card-overlay">
+                      <div className="view-details-btn">
+                        {job.alreadyApplied ? 'View Application' : 'View Details'}
+                      </div>
+                    </div>
+                    {job.alreadyApplied && (
+                      <div className="applied-badge">Applied</div>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <div className="no-jobs-message">
+                  {profile?.skills?.length ? 
+                    "No recommended jobs found. Try updating your skills or check back later." : 
+                    "Add skills to your profile to see job recommendations."}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
+        
+        {/* Show recommended workers if the user is an employer or both */}
+        {(profile?.userType === 'employer' || profile?.userType === 'both') && (
+          <div className="profile-section">
+            <div className="section-header-with-actions">
+              <h2>
+                {recommendedWorkers.some(worker => worker.isTopRated) 
+                  ? "Top-Rated Workers" 
+                  : "Recommended Workers"}
+              </h2>
+              <Link to="/search-workers" className="view-more-btn">View More Workers</Link>
+            </div>
+            <div className="profile-recommended-workers">
+              {loadingWorkers ? (
+                <div className="loading-workers">Loading workers...</div>
+              ) : recommendedWorkers.length > 0 ? (
+                recommendedWorkers.map((worker, index) => (
+                  <div 
+                    className="worker-card" 
+                    key={worker._id || index}
+                    onClick={() => handleWorkerClick(worker)}
+                    role="button"
+                    tabIndex={0}
+                  >
+                    <div className="worker-avatar">
+                      {worker.profilePicture ? (
+                        <img 
+                          src={`data:image/jpeg;base64,${worker.profilePicture}`} 
+                          alt={`${worker.firstName} ${worker.lastName}`} 
+                        />
+                      ) : (
+                        <div className="worker-initials">
+                          {worker.firstName?.[0]}{worker.lastName?.[0]}
+                        </div>
+                      )}
+                    </div>
+                    <div className="worker-info">
+                      <div className="worker-name">{worker.firstName} {worker.lastName}</div>
+                      <div className="worker-barangay">{worker.barangay || 'Unknown barangay'}</div>
+                      {worker.skills && worker.skills.length > 0 && (
+                        <div className="worker-skills">
+                          {worker.skills.slice(0, 2).join(", ")}
+                          {worker.skills.length > 2 && "..."}
+                        </div>
+                      )}
+                      <div className="worker-rating-row">
+                        {(worker.rating > 0 || worker.averageRating > 0) ? (
+                          <>
+                            <div className="worker-rating">
+                              ★ {typeof worker.rating === 'number' && worker.rating > 0 
+                                  ? worker.rating.toFixed(1) 
+                                  : worker.averageRating ? worker.averageRating.toFixed(1) : "N/A"}
+                            </div>
+                            {worker.ratingCount > 0 && (
+                              <div className="worker-rating-count">
+                                ({worker.ratingCount} ratings)
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <div className="worker-no-rating">No ratings yet</div>
+                        )}
+                      </div>
+                    </div>
+                    {worker.isTopRated && (
+                      <div className="top-rated-badge">
+                        ★ Top Rated
+                      </div>
+                    )}
+                    <div className="worker-card-overlay">
+                      <div className="view-details-btn">
+                        View Profile
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="no-workers-message">
+                  No workers found at this time.
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="profile-section">
           <GoalManagement />
@@ -797,7 +1237,264 @@ function Profile() {
           </div>
         )}
 
-
+        {/* Job Details Modal */}
+        {showJobModal && selectedJob && (
+          <div className="modal-overlay" onClick={handleCloseJobModal}>
+            <div className="modal-content job-modal-content" onClick={(e) => e.stopPropagation()}>
+              <button onClick={handleCloseJobModal} className="close">×</button>
+              <div className="modal-header">
+                <h3>Job Details</h3>
+              </div>
+              
+              <div className="job-modal-details">
+                <h4 className="job-modal-title">{selectedJob.title}</h4>
+                
+                <div className="job-modal-section">
+                  <div className="job-modal-price">₱{selectedJob.price}</div>
+                  <div className="job-modal-posted">
+                    Posted {new Date(selectedJob.datePosted).toLocaleDateString()}
+                  </div>
+                </div>
+                
+                <div className="job-modal-section">
+                  <label>Description</label>
+                  <p className="job-modal-description">
+                    {selectedJob.description || "No description provided."}
+                  </p>
+                </div>
+                
+                <div className="job-modal-section">
+                  <label>Location</label>
+                  <div className="job-modal-location">
+                    {selectedJob.barangay} {selectedJob.locationMatch && (
+                      <span className="location-match-badge">In your area</span>
+                    )}
+                  </div>
+                </div>
+                
+                {selectedJob.skillsRequired && selectedJob.skillsRequired.length > 0 && (
+                  <div className="job-modal-section">
+                    <label>Skills Required</label>
+                    <div className="job-modal-skills">
+                      {selectedJob.skillsRequired.map((skill, idx) => (
+                        <span key={idx} className={`job-modal-skill-tag ${
+                          selectedJob.matchingSkills?.includes(skill) ? 'matching-skill' : ''
+                        }`}>
+                          {skill}
+                          {selectedJob.matchingSkills?.includes(skill) && (
+                            <span className="skill-match-icon">✓</span>
+                          )}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {selectedJob.postedBy && (
+                  <div className="job-modal-section">
+                    <label>Posted By</label>
+                    <div className="job-modal-employer">
+                      {selectedJob.postedBy.firstName} {selectedJob.postedBy.lastName}
+                    </div>
+                  </div>
+                )}
+                
+                {applicationStatus && (
+                  <div className={`application-status ${applicationStatus.success ? 'success' : 'error'}`}>
+                    {applicationStatus.message}
+                  </div>
+                )}
+                
+                <div className="job-modal-actions">
+                  <button 
+                    onClick={handleCloseJobModal} 
+                    className="btn btn-secondary"
+                  >
+                    Close
+                  </button>
+                  
+                  {profile?.userType !== 'employer' && (
+                    selectedJob.alreadyApplied ? (
+                      <button className="btn btn-disabled" disabled>
+                        Already Applied
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={() => handleApplyToJob(selectedJob._id)} 
+                        className="btn btn-primary"
+                        disabled={applyingToJob}
+                      >
+                        {applyingToJob ? 'Applying...' : 'Apply Now'}
+                      </button>
+                    )
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Worker Details Modal */}
+        {showWorkerModal && selectedWorker && (
+          <div className="modal-overlay" onClick={handleCloseWorkerModal}>
+            <div className="modal-content worker-modal-content" onClick={(e) => e.stopPropagation()}>
+              <button onClick={handleCloseWorkerModal} className="close">×</button>
+              <div className="modal-header">
+                <h3>Worker Profile</h3>
+              </div>
+              
+              <div className="worker-modal-details">
+                <div className="worker-modal-header">
+                  <div className="worker-modal-avatar">
+                    {selectedWorker.profilePicture ? (
+                      <img 
+                        src={`data:image/jpeg;base64,${selectedWorker.profilePicture}`} 
+                        alt={`${selectedWorker.firstName} ${selectedWorker.lastName}`} 
+                      />
+                    ) : (
+                      <div className="worker-modal-initials">
+                        {selectedWorker.firstName?.[0]}{selectedWorker.lastName?.[0]}
+                      </div>
+                    )}
+                  </div>
+                  <div className="worker-modal-info">
+                    <h4 className="worker-modal-name">
+                      {selectedWorker.firstName} {selectedWorker.lastName}
+                      {selectedWorker.isTopRated && (
+                        <span className="worker-modal-badge">★ Top Rated</span>
+                      )}
+                    </h4>
+                    <div className="worker-modal-barangay">{selectedWorker.barangay || 'Unknown barangay'}</div>
+                    <div className="worker-modal-rating">
+                      {(selectedWorker.rating > 0 || selectedWorker.averageRating > 0) ? (
+                        <div className="rating-stars">
+                          ★ {typeof selectedWorker.rating === 'number' && selectedWorker.rating > 0 
+                              ? selectedWorker.rating.toFixed(1) 
+                              : selectedWorker.averageRating ? selectedWorker.averageRating.toFixed(1) : "N/A"}
+                          {selectedWorker.ratingCount > 0 && (
+                            <span className="rating-count">
+                              ({selectedWorker.ratingCount} ratings)
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="no-rating">No ratings yet</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                
+                {selectedWorker.bio && (
+                  <div className="worker-modal-section">
+                    <label>About</label>
+                    <p className="worker-modal-bio">
+                      {selectedWorker.bio}
+                    </p>
+                  </div>
+                )}
+                
+                {selectedWorker.skills && selectedWorker.skills.length > 0 && (
+                  <div className="worker-modal-section">
+                    <label>Skills</label>
+                    <div className="worker-modal-skills">
+                      {selectedWorker.skills.map((skill, idx) => (
+                        <span key={idx} className="worker-modal-skill-tag">
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Display recent ratings if available */}
+                {selectedWorker.detailedRatings && selectedWorker.detailedRatings.length > 0 && (
+                  <div className="worker-modal-section">
+                    <label>Recent Ratings</label>
+                    <div className="worker-modal-ratings">
+                      {selectedWorker.detailedRatings.map((rating, idx) => (
+                        <div key={idx} className="worker-modal-rating-card">
+                          <div className="worker-modal-rating-stars">
+                            {'★'.repeat(rating.rating)}{'☆'.repeat(5 - rating.rating)}
+                          </div>
+                          <div className="worker-modal-rating-comment">
+                            {rating.comment || "No comment provided."}
+                          </div>
+                          <div className="worker-modal-rating-footer">
+                            <span className="worker-modal-rating-author">
+                              {rating.rater?.firstName || 'Anonymous'} {rating.rater?.lastName || ''}
+                            </span>
+                            <span className="worker-modal-rating-date">
+                              {new Date(rating.createdAt).toLocaleDateString()}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {inviteStatus && (
+                  <div className={`invitation-status ${inviteStatus.success ? 'success' : 'error'}`}>
+                    {inviteStatus.message}
+                  </div>
+                )}
+                
+                {(profile?.userType === 'employer' || profile?.userType === 'both') && myJobs && myJobs.length > 0 && (
+                  <div className="worker-modal-section">
+                    <label>Invite to Job</label>
+                    <div className="job-selection">
+                      <select 
+                        className="job-select" 
+                        id="job-select"
+                        disabled={invitingWorker}
+                      >
+                        <option value="">Select a job to invite worker</option>
+                        {myJobs.map(job => (
+                          <option key={job._id} value={job._id}>
+                            {job.title} - ₱{job.price}
+                          </option>
+                        ))}
+                      </select>
+                      <button 
+                        className="btn btn-primary invite-btn"
+                        disabled={invitingWorker}
+                        onClick={() => {
+                          const select = document.getElementById('job-select');
+                          const jobId = select.value;
+                          if (jobId) {
+                            handleInviteWorker(selectedWorker._id, jobId);
+                          } else {
+                            showError('Please select a job first');
+                          }
+                        }}
+                      >
+                        {invitingWorker ? 'Sending Invite...' : 'Send Invitation'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
+                <div className="worker-modal-actions">
+                  <button 
+                    onClick={handleCloseWorkerModal} 
+                    className="btn btn-secondary"
+                  >
+                    Close
+                  </button>
+                  
+                  <a 
+                    href={`/users/${selectedWorker._id}`} 
+                    className="btn btn-primary"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    View Full Profile
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
       <style>{`
 /* Goal System Styles */
@@ -1255,6 +1952,25 @@ function Profile() {
           align-items: center;
           margin-bottom: 1rem;
         }
+        .section-header-with-actions {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 1rem;
+        }
+        .view-more-btn {
+          background: #22314a;
+          color: #fff;
+          padding: 0.4rem 0.8rem;
+          border-radius: 6px;
+          font-size: 0.9rem;
+          text-decoration: none;
+          transition: background-color 0.2s;
+        }
+        .view-more-btn:hover {
+          background: #2d4059;
+          text-decoration: none;
+        }
         .add-goal-btn {
           background: #38a169;
           color: white;
@@ -1374,27 +2090,228 @@ function Profile() {
           padding: 1rem 1.2rem;
         }
         .profile-recommended-jobs {
-          display: flex;
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
           gap: 1.2rem;
-          justify-content: flex-end;
-          margin-top: 2rem;
-          gap: 2.2rem;
-          border-top: 1px solid #e2e8f0;
           width: 100%;
+          margin-top: 1.5rem;
+        }
+        .job-card {
+          background: #f8fafc;
+          border: 1.5px solid #e2e8f0;
           border-radius: 10px;
-          padding: 1rem 1.2rem;
+          padding: 1.2rem;
           min-width: 160px;
           font-size: 1rem;
-          font-weight: 600;
           color: #22314a;
           box-shadow: 0 1px 4px rgba(0,0,0,0.04);
-        }
-        .job-card span {
+          transition: all 0.2s;
           display: block;
-          font-size: 0.95rem;
+          position: relative;
+          overflow: hidden;
+          cursor: pointer;
+        }
+        .job-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+          border-color: #cbd5e1;
+        }
+        .job-card-overlay {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(34, 49, 74, 0.7);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          opacity: 0;
+          transition: opacity 0.3s ease;
+        }
+        .job-card:hover .job-card-overlay {
+          opacity: 1;
+        }
+        .view-details-btn {
+          background: #ffffff;
+          color: #22314a;
+          padding: 0.6rem 1.2rem;
+          border-radius: 8px;
+          font-weight: 600;
+          transition: all 0.2s;
+        }
+        .job-card:hover .view-details-btn {
+          transform: scale(1.05);
+        }
+        .applied-badge {
+          position: absolute;
+          top: 10px;
+          right: 10px;
+          background: #3182ce;
+          color: white;
+          font-size: 0.7rem;
+          font-weight: 600;
+          padding: 3px 8px;
+          border-radius: 12px;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .job-title {
+          font-size: 1.1rem;
+          font-weight: 600;
+          color: #22314a;
+          margin-bottom: 0.8rem;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .job-details {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 0.7rem;
+        }
+        .job-price {
+          font-weight: 600;
+          color: #38a169;
+        }
+        .job-match {
+          color: #2b6cb0;
+          font-size: 0.9rem;
+          font-weight: 500;
+        }
+        .job-skills {
+          color: #4a5568;
+          font-size: 0.9rem;
+          margin-bottom: 0.6rem;
+        }
+        .job-location {
+          font-size: 0.9rem;
           color: #64748b;
-          font-weight: 400;
-          margin-top: 0.3rem;
+          margin-top: 0.6rem;
+        }
+        .location-match {
+          color: #38a169;
+          font-weight: 500;
+        }
+        .loading-jobs, .no-jobs-message, .loading-workers, .no-workers-message {
+          grid-column: 1 / -1;
+          padding: 2rem;
+          text-align: center;
+          color: #64748b;
+          background: #f1f5f9;
+          border-radius: 8px;
+        }
+        
+        /* Recommended Workers Styles */
+        .profile-recommended-workers {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+          gap: 1.2rem;
+          width: 100%;
+          margin-top: 1.5rem;
+        }
+        
+        .worker-card {
+          background: #f8fafc;
+          border: 1.5px solid #e2e8f0;
+          border-radius: 10px;
+          padding: 1.2rem;
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+          text-decoration: none;
+          color: #22314a;
+          transition: all 0.2s;
+          position: relative;
+        }
+        
+        .worker-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+          border-color: #cbd5e1;
+        }
+        
+        .worker-avatar {
+          width: 60px;
+          height: 60px;
+          border-radius: 50%;
+          background: #e2e8f0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          overflow: hidden;
+          flex-shrink: 0;
+        }
+        
+        .worker-avatar img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+        
+        .worker-initials {
+          font-size: 1.2rem;
+          font-weight: 600;
+          color: #22314a;
+        }
+        
+        .worker-info {
+          flex: 1;
+        }
+        
+        .worker-name {
+          font-size: 1.1rem;
+          font-weight: 600;
+          color: #22314a;
+          margin-bottom: 0.3rem;
+        }
+        
+        .worker-barangay {
+          font-size: 0.9rem;
+          color: #4a5568;
+          margin-bottom: 0.3rem;
+        }
+        
+        .worker-skills {
+          font-size: 0.85rem;
+          color: #64748b;
+        }
+        
+        .worker-rating-row {
+          display: flex;
+          align-items: center;
+          margin-top: 0.4rem;
+          gap: 0.4rem;
+        }
+        
+        .worker-rating {
+          color: #f59e0b;
+          font-weight: 600;
+          font-size: 0.9rem;
+        }
+        
+        .worker-rating-count {
+          font-size: 0.8rem;
+          color: #64748b;
+        }
+        
+        .worker-no-rating {
+          font-size: 0.85rem;
+          color: #64748b;
+          font-style: italic;
+        }
+        
+        .top-rated-badge {
+          position: absolute;
+          top: 10px;
+          right: 10px;
+          background: #f59e0b;
+          color: white;
+          font-size: 0.7rem;
+          font-weight: 600;
+          padding: 3px 8px;
+          border-radius: 12px;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         .profile-goal-label {
           font-size: 1.1rem;
@@ -1473,6 +2390,350 @@ function Profile() {
           color: #64748b;
           font-size: 0.98rem;
         }
+        /* Job Modal Styles */
+        .job-modal-content {
+          max-width: 600px;
+          padding: 2rem;
+        }
+        .job-modal-details {
+          padding: 0.5rem;
+        }
+        .job-modal-title {
+          font-size: 1.4rem;
+          font-weight: 600;
+          color: #22314a;
+          margin-bottom: 1.2rem;
+        }
+        .job-modal-section {
+          margin-bottom: 1.5rem;
+        }
+        .job-modal-section label {
+          display: block;
+          font-size: 0.9rem;
+          font-weight: 600;
+          color: #64748b;
+          margin-bottom: 0.4rem;
+        }
+        .job-modal-price {
+          font-size: 1.3rem;
+          font-weight: 700;
+          color: #38a169;
+          margin-bottom: 0.4rem;
+        }
+        .job-modal-posted {
+          font-size: 0.9rem;
+          color: #64748b;
+        }
+        .job-modal-description {
+          background: #f8fafc;
+          border-radius: 8px;
+          padding: 1rem;
+          line-height: 1.5;
+          color: #22314a;
+        }
+        .job-modal-location {
+          font-size: 1.05rem;
+          color: #22314a;
+        }
+        .location-match-badge {
+          display: inline-block;
+          background: #38a169;
+          color: white;
+          padding: 0.2rem 0.6rem;
+          border-radius: 12px;
+          font-size: 0.8rem;
+          margin-left: 0.5rem;
+        }
+        .job-modal-skills {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.6rem;
+          margin-top: 0.5rem;
+        }
+        .job-modal-skill-tag {
+          background: #f1f5f9;
+          border: 1px solid #e2e8f0;
+          padding: 0.3rem 0.8rem;
+          border-radius: 6px;
+          font-size: 0.9rem;
+          display: inline-flex;
+          align-items: center;
+          gap: 0.3rem;
+        }
+        .matching-skill {
+          background: #e9f7ef;
+          border-color: #38a169;
+          color: #2f855a;
+        }
+        .skill-match-icon {
+          color: #38a169;
+          font-weight: bold;
+        }
+        .job-modal-employer {
+          font-size: 1.05rem;
+          color: #22314a;
+        }
+        .job-modal-actions {
+          display: flex;
+          justify-content: flex-end;
+          gap: 1rem;
+          margin-top: 2rem;
+          padding-top: 1rem;
+          border-top: 1px solid #e2e8f0;
+        }
+        .application-status {
+          padding: 1rem;
+          border-radius: 8px;
+          margin-bottom: 1rem;
+          font-weight: 500;
+        }
+        .application-status.success {
+          background: #e9f7ef;
+          color: #2f855a;
+        }
+        .application-status.error {
+          background: #fee2e2;
+          color: #e53e3e;
+        }
+        .btn-disabled {
+          background: #cbd5e1;
+          color: #64748b;
+          cursor: not-allowed;
+        }
+        
+        /* Worker Modal Styles */
+        .worker-modal-content {
+          max-width: 600px;
+          padding: 2rem;
+        }
+        
+        .worker-modal-details {
+          padding: 0.5rem;
+        }
+        
+        .worker-modal-header {
+          display: flex;
+          gap: 1.5rem;
+          margin-bottom: 2rem;
+        }
+        
+        .worker-modal-avatar {
+          width: 80px;
+          height: 80px;
+          border-radius: 50%;
+          background: #e2e8f0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          overflow: hidden;
+        }
+        
+        .worker-modal-avatar img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+        
+        .worker-modal-initials {
+          font-size: 1.8rem;
+          font-weight: 600;
+          color: #22314a;
+        }
+        
+        .worker-modal-info {
+          flex: 1;
+        }
+        
+        .worker-modal-name {
+          font-size: 1.5rem;
+          font-weight: 600;
+          color: #22314a;
+          margin-bottom: 0.5rem;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
+        
+        .worker-modal-badge {
+          background: #f59e0b;
+          color: white;
+          font-size: 0.7rem;
+          padding: 0.2rem 0.6rem;
+          border-radius: 12px;
+          display: inline-flex;
+          align-items: center;
+          font-weight: 600;
+        }
+        
+        .worker-modal-barangay {
+          font-size: 1.05rem;
+          color: #4a5568;
+          margin-bottom: 0.5rem;
+        }
+        
+        .worker-modal-rating {
+          display: flex;
+          align-items: center;
+          margin-top: 0.5rem;
+        }
+        
+        .rating-stars {
+          color: #f59e0b;
+          font-weight: 600;
+          font-size: 1rem;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
+        
+        .rating-count {
+          font-size: 0.9rem;
+          color: #64748b;
+          font-weight: normal;
+        }
+        
+        .no-rating {
+          font-size: 0.9rem;
+          color: #64748b;
+          font-style: italic;
+        }
+        
+        .worker-modal-section {
+          margin-bottom: 1.5rem;
+        }
+        
+        .worker-modal-section label {
+          display: block;
+          font-size: 0.9rem;
+          font-weight: 600;
+          color: #64748b;
+          margin-bottom: 0.4rem;
+        }
+        
+        .worker-modal-bio {
+          background: #f8fafc;
+          border-radius: 8px;
+          padding: 1rem;
+          line-height: 1.5;
+          color: #22314a;
+        }
+        
+        .worker-modal-skills {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.6rem;
+          margin-top: 0.5rem;
+        }
+        
+        .worker-modal-skill-tag {
+          background: #f1f5f9;
+          border: 1px solid #e2e8f0;
+          padding: 0.3rem 0.8rem;
+          border-radius: 6px;
+          font-size: 0.9rem;
+        }
+        
+        .worker-modal-actions {
+          display: flex;
+          justify-content: flex-end;
+          gap: 1rem;
+          margin-top: 2rem;
+          padding-top: 1rem;
+          border-top: 1px solid #e2e8f0;
+        }
+        
+        .invitation-status {
+          padding: 1rem;
+          border-radius: 8px;
+          margin-bottom: 1rem;
+          font-weight: 500;
+        }
+        
+        .invitation-status.success {
+          background: #e9f7ef;
+          color: #2f855a;
+        }
+        
+        .invitation-status.error {
+          background: #fee2e2;
+          color: #e53e3e;
+        }
+        
+        .job-selection {
+          display: flex;
+          gap: 1rem;
+          margin-top: 0.5rem;
+        }
+        
+        .job-select {
+          flex: 1;
+          padding: 0.7rem;
+          border: 1px solid #e2e8f0;
+          border-radius: 6px;
+          font-size: 0.9rem;
+          color: #22314a;
+        }
+        
+        .invite-btn {
+          white-space: nowrap;
+        }
+        
+        .worker-card-overlay {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(34, 49, 74, 0.7);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          opacity: 0;
+          transition: opacity 0.3s ease;
+        }
+        
+        .worker-card:hover .worker-card-overlay {
+          opacity: 1;
+        }
+        
+        .worker-modal-ratings {
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+          margin-top: 0.5rem;
+        }
+        
+        .worker-modal-rating-card {
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          border-radius: 8px;
+          padding: 0.8rem 1rem;
+        }
+        
+        .worker-modal-rating-stars {
+          color: #f59e0b;
+          font-size: 1.1rem;
+          margin-bottom: 0.5rem;
+        }
+        
+        .worker-modal-rating-comment {
+          font-size: 0.95rem;
+          color: #22314a;
+          margin-bottom: 0.5rem;
+          line-height: 1.4;
+        }
+        
+        .worker-modal-rating-footer {
+          display: flex;
+          justify-content: space-between;
+          font-size: 0.85rem;
+          color: #64748b;
+        }
+        
+        .worker-modal-rating-author {
+          font-weight: 500;
+        }
+        
         @media (max-width: 900px) {
           .profile-main-card {
             padding: 1.2rem 0.5rem;
@@ -1484,6 +2745,10 @@ function Profile() {
           .profile-ratings-carousel {
             flex-direction: column;
             gap: 0.7rem;
+          }
+          .job-modal-content {
+            width: 90%;
+            padding: 1.5rem;
           }
         }
       `}</style>

@@ -1,5 +1,16 @@
 {
   "rewrites": [
     { "source": "/(.*)", "destination": "/" }
-  ]
+  ],
+  "env": {
+    "VITE_API_URL": "https://resi-backend-1.onrender.com/api"
+  },
+  "build": {
+    "env": {
+      "VITE_API_URL": "https://resi-backend-1.onrender.com/api"
+    }
+  },
+  "github": {
+    "silent": true
+  }
 }

@@ -855,7 +855,7 @@ function AdminDashboard() {
   const viewJob = async (jobId) => {
     try {
       const token = localStorage.getItem('token')
-      const apiBaseUrl = import.meta.env.VITE_API_URL || 'https://resilinked-9mf9.vercel.app/api'
+      const apiBaseUrl = import.meta.env.VITE_API_URL || 'https://resi-backend-1.onrender.com/api'
       const response = await fetch(`${apiBaseUrl}/jobs/${jobId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
@@ -876,7 +876,7 @@ function AdminDashboard() {
     if (window.confirm('Are you sure you want to delete this job? This action cannot be undone.')) {
       try {
         const token = localStorage.getItem('token')
-        const apiBaseUrl = import.meta.env.VITE_API_URL || 'https://resilinked-9mf9.vercel.app/api'
+        const apiBaseUrl = import.meta.env.VITE_API_URL || 'https://resi-backend-1.onrender.com/api'
         const response = await fetch(`${apiBaseUrl}/admin/jobs/${jobId}`, {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${token}` }
@@ -903,7 +903,7 @@ function AdminDashboard() {
   const toggleJobStatus = async (jobId, currentStatus) => {
     try {
       const token = localStorage.getItem('token')
-      const apiBaseUrl = import.meta.env.VITE_API_URL || 'https://resilinked-9mf9.vercel.app/api'
+      const apiBaseUrl = import.meta.env.VITE_API_URL || 'https://resi-backend-1.onrender.com/api'
       const response = await fetch(`${apiBaseUrl}/jobs/${jobId}/close`, {
         method: 'PUT',
         headers: { 
@@ -929,7 +929,7 @@ function AdminDashboard() {
   const exportData = async (type, format = 'csv') => {
     try {
       const token = localStorage.getItem('token')
-      const apiBaseUrl = import.meta.env.VITE_API_URL || 'https://resilinked-9mf9.vercel.app/api'
+      const apiBaseUrl = import.meta.env.VITE_API_URL || 'https://resi-backend-1.onrender.com/api'
       const response = await fetch(`${apiBaseUrl}/export/${type}?format=${format}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
