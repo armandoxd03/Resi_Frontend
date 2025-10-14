@@ -768,14 +768,14 @@ function Profile() {
           letter-spacing: 0.5px !important;
         }
         .common-skills-options {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 0.5rem;
+          display: flex !important;
+          flex-wrap: wrap !important;
+          gap: 0.5rem !important;
         }
         .common-skill-option {
-          background: white !important;
-          border: 1.5px solid #e2e8f0 !important;
-          color: #475569 !important;
+          background: #ff0000 !important;
+          border: 3px solid #000000 !important;
+          color: #ffffff !important;
           padding: 0.45rem 0.85rem !important;
           border-radius: 20px !important;
           font-size: 0.85rem !important;
@@ -2946,6 +2946,140 @@ function Profile() {
           cursor: pointer !important;
           font-weight: 600 !important;
           border-radius: 8px !important;
+        }
+
+        /* Skills Section Styles - Professional Design */
+        .skills-section {
+          margin-top: 0.5rem;
+        }
+        .skills-input-container {
+          display: flex;
+          gap: 0.5rem;
+          margin-bottom: 1.25rem;
+        }
+        .skills-input-container input {
+          flex: 1;
+          padding: 0.65rem 1rem;
+          border: 1.5px solid #e2e8f0;
+          border-radius: 8px;
+          font-size: 0.95rem;
+          transition: border-color 0.2s;
+        }
+        .skills-input-container input:focus {
+          outline: none;
+          border-color: #6366f1;
+        }
+        .add-skill-btn {
+          padding: 0.65rem 1.25rem !important;
+          background: #6366f1 !important;
+          color: white !important;
+          border: none !important;
+          border-radius: 8px !important;
+          cursor: pointer !important;
+          font-weight: 500 !important;
+          font-size: 0.9rem !important;
+          transition: all 0.2s !important;
+          white-space: nowrap !important;
+        }
+        .add-skill-btn:hover {
+          background: #4f46e5 !important;
+          transform: translateY(-1px) !important;
+          box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3) !important;
+        }
+        .common-skills {
+          margin-bottom: 1.25rem !important;
+          padding: 1rem !important;
+          background: #f8fafc !important;
+          border-radius: 10px !important;
+          border: 1px solid #e2e8f0 !important;
+        }
+        .common-skills label {
+          display: block !important;
+          font-size: 0.85rem !important;
+          font-weight: 600 !important;
+          margin-bottom: 0.75rem !important;
+          color: #334155 !important;
+          text-transform: uppercase !important;
+          letter-spacing: 0.5px !important;
+        }
+        .common-skills-options {
+          display: flex !important;
+          flex-wrap: wrap !important;
+          gap: 0.5rem !important;
+        }
+        .common-skill-option {
+          background: white !important;
+          border: 1.5px solid #e2e8f0 !important;
+          color: #475569 !important;
+          padding: 0.45rem 0.85rem !important;
+          border-radius: 20px !important;
+          font-size: 0.85rem !important;
+          font-weight: 500 !important;
+          cursor: pointer !important;
+          transition: all 0.2s ease !important;
+          white-space: nowrap !important;
+        }
+        .common-skill-option:hover {
+          background: #f1f5f9 !important;
+          border-color: #cbd5e1 !important;
+          transform: translateY(-1px) !important;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05) !important;
+        }
+        .common-skill-option.selected {
+          background: #6366f1 !important;
+          border-color: #6366f1 !important;
+          color: white !important;
+          box-shadow: 0 2px 8px rgba(99, 102, 241, 0.25) !important;
+        }
+        .skills-container {
+          display: flex !important;
+          flex-wrap: wrap !important;
+          gap: 0.6rem !important;
+          margin-top: 1rem !important;
+          padding: 1.25rem !important;
+          background: #ffffff !important;
+          border-radius: 10px !important;
+          border: 1.5px solid #e2e8f0 !important;
+          min-height: 60px !important;
+        }
+        .skill-tag {
+          display: inline-flex !important;
+          align-items: center !important;
+          gap: 0.4rem !important;
+          background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important;
+          color: white !important;
+          padding: 0.5rem 0.85rem !important;
+          border-radius: 20px !important;
+          font-size: 0.85rem !important;
+          font-weight: 500 !important;
+          box-shadow: 0 2px 6px rgba(99, 102, 241, 0.2) !important;
+          transition: all 0.2s ease !important;
+        }
+        .skill-tag:hover {
+          transform: translateY(-1px) !important;
+          box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3) !important;
+        }
+        .remove-skill {
+          background: rgba(255, 255, 255, 0.2);
+          border: none;
+          color: white;
+          cursor: pointer;
+          font-size: 1rem;
+          font-weight: 600;
+          padding: 0;
+          margin-left: 0.25rem;
+          width: 18px;
+          height: 18px;
+          border-radius: 50%;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          line-height: 1;
+          transition: all 0.2s ease;
+        }
+        .remove-skill:hover {
+          background: rgba(255, 255, 255, 0.35);
+          transform: scale(1.15);
         }
       `}</style>
     </div>
