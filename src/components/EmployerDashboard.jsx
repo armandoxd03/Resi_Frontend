@@ -387,9 +387,9 @@ function EmployerDashboard() {
       // First complete the job
       const result = await apiService.completeJob(jobToComplete._id);
       
-      // Then submit the rating
+      // Then submit the rating (using rateeId to match backend expectation)
       await apiService.rateUser({
-        ratedUserId: jobToComplete.assignedTo._id,
+        rateeId: jobToComplete.assignedTo._id,
         rating: rating,
         comment: ratingComment,
         jobId: jobToComplete._id
