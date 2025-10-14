@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { NotificationContext } from '../context/NotificationContext';
 import NotificationDropdown from './NotificationDropdown';
+import { getProfilePictureUrl } from '../utils/imageHelper';
 
 function Navigation() {
   const { user, logout, hasAccessTo, isAuthenticated, loading } = useContext(AuthContext);
@@ -84,6 +85,11 @@ function Navigation() {
                   Find Jobs
                 </NavLink>
                 
+                <NavLink to="/messages">
+                  <span className="nav-icon">💬</span>
+                  Messages
+                </NavLink>
+                
                 {(user?.userType === 'employee' || user?.userType === 'both') && (
                   <NavLink to="/employee-dashboard">
                     <span className="nav-icon">👤</span>
@@ -124,7 +130,15 @@ function Navigation() {
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
                 >
                   <div className="user-avatar">
-                    {user?.firstName?.[0] || 'U'}
+                    {getProfilePictureUrl(user) ? (
+                      <img 
+                        src={getProfilePictureUrl(user)} 
+                        alt="Profile" 
+                        className="avatar-img"
+                      />
+                    ) : (
+                      user?.firstName?.[0] || 'U'
+                    )}
                   </div>
                   <span className="user-name">{user?.firstName || 'User'}</span>
                   <span className={`dropdown-arrow ${userMenuOpen ? 'open' : ''}`}>▼</span>
@@ -202,7 +216,15 @@ function Navigation() {
             <div className="mobile-menu-header">
               <div className="user-info-mobile">
                 <div className="user-avatar-mobile">
-                  {user?.firstName?.[0] || 'U'}
+                  {getProfilePictureUrl(user) ? (
+                    <img 
+                      src={getProfilePictureUrl(user)} 
+                      alt="Profile" 
+                      className="avatar-img"
+                    />
+                  ) : (
+                    user?.firstName?.[0] || 'U'
+                  )}
                 </div>
                 <div className="user-details-mobile">
                   <span className="user-name-mobile">
@@ -217,6 +239,11 @@ function Navigation() {
               <NavLink to="/search-jobs">
                 <span className="nav-icon">🔍</span>
                 Find Jobs
+              </NavLink>
+              
+              <NavLink to="/messages">
+                <span className="nav-icon">💬</span>
+                Messages
               </NavLink>
               
               <NavLink to="/profile">
@@ -388,7 +415,7 @@ function Navigation() {
         .user-avatar {
           width: 36px;
           height: 36px;
-          border-radius: var(--radius-full);
+          border-radius: 50%;
           background: linear-gradient(135deg, var(--primary-400) 0%, var(--primary-600) 100%);
           display: flex;
           align-items: center;
@@ -397,12 +424,13 @@ function Navigation() {
           font-size: var(--font-size-sm);
           box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
           border: 2px solid rgba(255, 255, 255, 0.3);
+          overflow: hidden;
         }
-          align-items: center;
-          justify-content: center;
-          font-weight: 600;
-          font-size: var(--font-size-sm);
-          box-shadow: var(--shadow-sm);
+        
+        .user-avatar .avatar-img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
         }
 
         .user-name {
@@ -584,7 +612,7 @@ function Navigation() {
         .user-avatar-mobile {
           width: 48px;
           height: 48px;
-          border-radius: var(--radius-full);
+          border-radius: 50%;
           background: linear-gradient(135deg, var(--primary-500) 0%, var(--primary-600) 100%);
           display: flex;
           align-items: center;
@@ -594,6 +622,13 @@ function Navigation() {
           font-size: var(--font-size-lg);
           box-shadow: 0 4px 16px rgba(147, 51, 234, 0.3);
           border: 2px solid var(--primary-300);
+          overflow: hidden;
+        }
+        
+        .user-avatar-mobile .avatar-img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
         }
 
         .user-details-mobile {

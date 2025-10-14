@@ -1,5 +1,5 @@
 import React, { useState, useContext, useRef, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { NotificationContext } from '../context/NotificationContext';
 import { format } from 'date-fns';
 
@@ -16,6 +16,7 @@ const NotificationDropdown = ({ isMobile = false }) => {
   
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
+  const navigate = useNavigate();
   
   // Handle clicks outside the dropdown to close it
   useEffect(() => {
@@ -44,7 +45,39 @@ const NotificationDropdown = ({ isMobile = false }) => {
     setIsOpen(false);
     
     // Handle navigation based on notification type
-    // This could be expanded based on your app's requirements
+    switch(notification.type) {
+      case 'job_invitation':
+        // Redirect to employee dashboard where they can see job invitations
+        navigate('/employee-dashboard');
+        break;
+      case 'job_application':
+        // Redirect to employer dashboard to see applications
+        navigate('/employer-dashboard');
+        break;
+      case 'application_accepted':
+      case 'application_rejected':
+        // Redirect to employee dashboard to see application status
+        navigate('/employee-dashboard');
+        break;
+      case 'message':
+        // Redirect to messages
+        navigate('/messages');
+        break;
+      case 'rating':
+        // Redirect to profile to see new rating
+        navigate('/profile');
+        break;
+      case 'job_completed':
+        // Redirect to appropriate dashboard based on user role
+        navigate('/employee-dashboard');
+        break;
+      case 'report':
+        // For reports, no specific redirect, maybe to a help/support page
+        break;
+      default:
+        // Default: go to notifications page if it exists
+        break;
+    }
   };
   
   // Format time like "2 hours ago", "5 minutes ago", etc.
