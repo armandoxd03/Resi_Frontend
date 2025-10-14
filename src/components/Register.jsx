@@ -1,9 +1,17 @@
+import { useState, useEffect, useRef } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
+import { useAlert } from '../context/AlertContext'
+import apiService from '../api'
+
+function Register() {
   // Add touched and fieldErrors state for password fields
   const [touched, setTouched] = useState({
     password: false,
     confirmPassword: false
   })
   const [fieldErrors, setFieldErrors] = useState({})
+
   // Validate password fields
   const validateField = (name, value) => {
     switch (name) {
@@ -35,13 +43,6 @@
       setFieldErrors(prev => ({ ...prev, [name]: '' }))
     }
   }
-import { useState, useEffect, useRef } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
-import { useAlert } from '../context/AlertContext'
-import apiService from '../api'
-
-function Register() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   // Password requirements state
@@ -256,10 +257,34 @@ function Register() {
   const handleSubmit = async (e) => {
     e.preventDefault()
 
-    // Password requirements including match
-    if (!requirements.length || !requirements.uppercase || !requirements.lowercase || !requirements.number || !requirements.special || !requirements.match) {
-      setError("Password does not meet requirements.")
-      return
+    // Always check latest requirements before validating
+    const latestRequirements = (() => {
+      let req = {
+        length: false,
+        uppercase: false,
+        lowercase: false,
+        number: false,
+        special: false,
+        match: false
+      };
+      // Length check
+      if (formData.password.length >= 8) req.length = true;
+      // Uppercase check
+      if (/[A-Z]/.test(formData.password)) req.uppercase = true;
+      // Lowercase check
+      if (/[a-z]/.test(formData.password)) req.lowercase = true;
+      // Number check
+      if (/\d/.test(formData.password)) req.number = true;
+      // Special character check
+      if (/[^A-Za-z0-9]/.test(formData.password)) req.special = true;
+      // Password match check
+      if (formData.confirmPassword && formData.password === formData.confirmPassword) req.match = true;
+      return req;
+    })();
+
+    if (!latestRequirements.length || !latestRequirements.uppercase || !latestRequirements.lowercase || !latestRequirements.number || !latestRequirements.special || !latestRequirements.match) {
+      setError("Password does not meet requirements.");
+      return;
     }
     // Validate that at least one skill is selected if employee or both
     if ((formData.userType === 'employee' || formData.userType === 'both') && 
