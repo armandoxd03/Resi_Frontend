@@ -247,17 +247,7 @@ function Settings() {
                 checked={settings.languagePreference === 'english'}
                 onChange={(e) => handleLanguageChange(e.target.value)}
               />
-              <span className="radio-text">English</span>
-            </label>
-            <label className="radio-label">
-              <input
-                type="radio"
-                name="language"
-                value="tagalog"
-                checked={settings.languagePreference === 'tagalog'}
-                onChange={(e) => handleLanguageChange(e.target.value)}
-              />
-              <span className="radio-text">Tagalog</span>
+              <span className="radio-text">English (App language is set to English only)</span>
             </label>
           </div>
         </div>

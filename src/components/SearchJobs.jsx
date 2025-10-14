@@ -344,6 +344,12 @@ function SearchJobs() {
                       }
                     </div>
 
+                    {job.postedBy?.email && (
+                      <div className="job-detail employer-contact">
+                        <strong>✉️ Contact:</strong> {job.postedBy.email}
+                      </div>
+                    )}
+
                     <div className="job-detail">
                       <strong>Applicants:</strong> {job.applicants ? job.applicants.length : 0}
                     </div>
@@ -367,6 +373,21 @@ function SearchJobs() {
                             ? 'Already Applied'
                             : 'Apply Now'}
                       </button>
+                      {isLoggedIn && job.postedBy?.email && (
+                        <Link
+                          to="/messages"
+                          state={{
+                            recipientEmail: job.postedBy.email,
+                            recipientName: `${job.postedBy.firstName} ${job.postedBy.lastName}`,
+                            subject: `Regarding: ${job.title}`
+                          }}
+                          className="message-btn"
+                          onClick={(e) => e.stopPropagation()}
+                          title="Message employer"
+                        >
+                          💬 Message
+                        </Link>
+                      )}
                       {isLoggedIn && (
                         <button 
                           className="report-btn"
@@ -633,6 +654,15 @@ function SearchJobs() {
           color: #2d3748;
         }
 
+        .employer-contact {
+          color: #2b6cb0;
+          font-weight: 500;
+        }
+
+        .employer-contact strong {
+          color: #2b6cb0;
+        }
+
         .skills-list {
           display: flex;
           flex-wrap: wrap;
@@ -651,10 +681,12 @@ function SearchJobs() {
         .job-actions {
           display: flex;
           justify-content: flex-end;
+          gap: 0.5rem;
           margin-top: 1rem;
         }
 
-        .apply-btn {
+        .apply-btn,
+        .message-btn {
           background: #38a169;
           color: white;
           border: none;
@@ -664,7 +696,17 @@ function SearchJobs() {
           cursor: pointer;
           transition: background-color 0.2s;
           position: relative;
-          z-index: 5; /* Ensure button is clickable */
+          z-index: 5;
+          text-decoration: none;
+          display: inline-block;
+        }
+
+        .message-btn {
+          background: #2b6cb0;
+        }
+
+        .message-btn:hover {
+          background: #2c5282;
         }
 
         .apply-btn:hover:not(:disabled) {
@@ -687,7 +729,6 @@ function SearchJobs() {
           transition: all 0.2s;
           position: relative;
           z-index: 5;
-          margin-left: 0.5rem;
         }
 
         .report-btn:hover {

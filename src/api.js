@@ -398,6 +398,22 @@ class ApiService {
     return this.request("/jobs/my-applications-received");
   }
 
+  async getMyInvitations() {
+    return this.request("/jobs/my-invitations");
+  }
+
+  async acceptInvitation(jobId) {
+    return this.request(`/jobs/${jobId}/accept-invitation`, {
+      method: "POST",
+    });
+  }
+
+  async declineInvitation(jobId) {
+    return this.request(`/jobs/${jobId}/decline-invitation`, {
+      method: "POST",
+    });
+  }
+
   async searchJobs(params = {}) {
     const query = new URLSearchParams(params).toString();
     return this.request(`/jobs/search${query ? "?" + query : ""}`);
@@ -596,6 +612,42 @@ class ApiService {
       method: "PATCH",
       body: { status },
     });
+  }
+
+  // ================= Messages =================
+  async sendMessage(messageData) {
+    return this.request("/messages", {
+      method: "POST",
+      body: messageData,
+    });
+  }
+
+  async getInbox() {
+    return this.request("/messages/inbox");
+  }
+
+  async getSentMessages() {
+    return this.request("/messages/sent");
+  }
+
+  async getConversation(userId) {
+    return this.request(`/messages/conversation/${userId}`);
+  }
+
+  async markMessageAsRead(messageId) {
+    return this.request(`/messages/${messageId}/read`, {
+      method: "PATCH",
+    });
+  }
+
+  async deleteMessage(messageId) {
+    return this.request(`/messages/${messageId}`, {
+      method: "DELETE",
+    });
+  }
+
+  async getUnreadCount() {
+    return this.request("/messages/unread/count");
   }
 
   // ================= Dashboard =================

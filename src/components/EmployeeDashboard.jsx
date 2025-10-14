@@ -15,10 +15,12 @@ function EmployeeDashboard() {
   const [myApplications, setMyApplications] = useState([]);
   const [applicationHistory, setApplicationHistory] = useState([]);
   const [jobMatches, setJobMatches] = useState([]);
+  const [jobInvitations, setJobInvitations] = useState([]);
   const [loading, setLoading] = useState({
     stats: false,
     applications: false,
-    matches: false
+    matches: false,
+    invitations: false
   });
   const [activeTab, setActiveTab] = useState('active'); // 'active' or 'history'
   const [showJobModal, setShowJobModal] = useState(false);
@@ -129,6 +131,21 @@ function EmployeeDashboard() {
       } finally {
         setLoading(prev => ({ ...prev, matches: false }));
       }
+
+      // Load job invitations
+      try {
+        setLoading(prev => ({ ...prev, invitations: true }));
+        const response = await apiService.getMyInvitations();
+        console.log('📨 Job invitations API response:', response);
+        console.log('📨 Invitations data:', response?.data);
+        console.log('📨 Number of invitations:', response?.data?.length || 0);
+        setJobInvitations(response?.data || []);
+      } catch (error) {
+        console.error('❌ Error loading job invitations:', error);
+        showError('Could not load job invitations');
+      } finally {
+        setLoading(prev => ({ ...prev, invitations: false }));
+      }
     };
 
     loadEmployeeData();
@@ -193,6 +210,38 @@ function EmployeeDashboard() {
       }
     } catch (error) {
       showError(error.message || 'Failed to apply for job');
+    }
+  };
+
+  const handleAcceptInvitation = async (jobId) => {
+    try {
+      await apiService.acceptInvitation(jobId);
+      success('Invitation accepted! You have applied to the job.');
+      
+      // Refresh invitations and applications
+      const invitationsResponse = await apiService.getMyInvitations();
+      setJobInvitations(invitationsResponse?.data || []);
+      
+      const appResponse = await apiService.getMyApplications();
+      if (appResponse && appResponse.activeApplications) {
+        setMyApplications(appResponse.activeApplications || []);
+        setApplicationHistory(appResponse.applicationHistory || []);
+      }
+    } catch (error) {
+      showError(error.message || 'Failed to accept invitation');
+    }
+  };
+
+  const handleDeclineInvitation = async (jobId) => {
+    try {
+      await apiService.declineInvitation(jobId);
+      success('Invitation declined');
+      
+      // Refresh invitations
+      const invitationsResponse = await apiService.getMyInvitations();
+      setJobInvitations(invitationsResponse?.data || []);
+    } catch (error) {
+      showError(error.message || 'Failed to decline invitation');
     }
   };
 
@@ -346,6 +395,57 @@ function EmployeeDashboard() {
           Update Profile
         </Link>
       </div>
+
+      {/* Job Invitations Section */}
+      <section className="dashboard-section invitations-section">
+        <div className="section-header">
+          <h2>📨 Job Invitations ({jobInvitations.length})</h2>
+        </div>
+        {jobInvitations.length > 0 ? (
+          <div className="invitations-grid">
+            {jobInvitations.map((invitation) => (
+              <div key={invitation._id} className="invitation-card">
+                <div className="invitation-header">
+                  <h3>{invitation.relatedJob?.title}</h3>
+                  <div className="invitation-price">
+                    ₱{invitation.relatedJob?.price?.toLocaleString()}
+                  </div>
+                </div>
+                <p className="invitation-message">{invitation.message}</p>
+                <div className="invitation-meta">
+                  <div className="meta-item">
+                    <span className="icon">📍</span>
+                    {invitation.relatedJob?.barangay}
+                  </div>
+                  <div className="meta-item">
+                    <span className="icon">📅</span>
+                    {new Date(invitation.createdAt).toLocaleDateString()}
+                  </div>
+                </div>
+                <div className="invitation-actions">
+                  <button
+                    onClick={() => handleAcceptInvitation(invitation.relatedJob._id)}
+                    className="btn success"
+                  >
+                    ✓ Accept & Apply
+                  </button>
+                  <button
+                    onClick={() => handleDeclineInvitation(invitation.relatedJob._id)}
+                    className="btn secondary"
+                  >
+                    ✕ Decline
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="no-invitations">
+            <p>No job invitations at the moment</p>
+            <small>Employers can invite you to jobs that match your skills</small>
+          </div>
+        )}
+      </section>
 
       {/* Tab Content */}
       <div className="tab-content">
@@ -617,7 +717,21 @@ function EmployeeDashboard() {
               <div className="job-detail-section">
                 <h3>Posted By</h3>
                 <p>👤 {selectedJob.postedBy?.firstName} {selectedJob.postedBy?.lastName}</p>
+                {selectedJob.postedBy?.email && (
+                  <p className="employer-email">✉️ {selectedJob.postedBy.email}</p>
+                )}
                 <p className="date-posted">📅 Posted on {new Date(selectedJob.datePosted).toLocaleDateString()}</p>
+                <Link 
+                  to="/messages" 
+                  state={{ 
+                    recipientEmail: selectedJob.postedBy?.email,
+                    recipientName: `${selectedJob.postedBy?.firstName} ${selectedJob.postedBy?.lastName}`,
+                    subject: `Regarding: ${selectedJob.title}`
+                  }}
+                  className="btn-message-employer"
+                >
+                  💬 Message Employer
+                </Link>
               </div>
 
               {selectedJob.matchingSkills && selectedJob.matchingSkills.length > 0 && (
@@ -1029,6 +1143,144 @@ function EmployeeDashboard() {
           border: 2px solid #ed8936;
         }
 
+        /* Invitations Section */
+        .invitations-section {
+          margin-bottom: 2rem;
+        }
+
+        .invitations-grid {
+          display: grid;
+          gap: 1rem;
+        }
+
+        .no-invitations {
+          text-align: center;
+          padding: 3rem 2rem;
+          background: #f8fafc;
+          border-radius: 8px;
+          color: #64748b;
+        }
+
+        .no-invitations p {
+          margin: 0 0 0.5rem 0;
+          font-size: 1.1rem;
+          font-weight: 500;
+        }
+
+        .no-invitations small {
+          font-size: 0.9rem;
+          color: #94a3b8;
+        }
+
+        .invitation-card {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          border-radius: 12px;
+          padding: 1.5rem;
+          color: white;
+          box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+          transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .invitation-card:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .invitation-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          margin-bottom: 1rem;
+          gap: 1rem;
+        }
+
+        .invitation-header h3 {
+          margin: 0;
+          font-size: 1.3rem;
+          font-weight: 600;
+          flex: 1;
+        }
+
+        .invitation-price {
+          background: rgba(255, 255, 255, 0.25);
+          backdrop-filter: blur(10px);
+          padding: 0.5rem 1rem;
+          border-radius: 20px;
+          font-weight: bold;
+          font-size: 1rem;
+          white-space: nowrap;
+        }
+
+        .invitation-message {
+          margin: 0.75rem 0;
+          font-size: 0.95rem;
+          line-height: 1.5;
+          opacity: 0.95;
+        }
+
+        .invitation-meta {
+          display: flex;
+          gap: 1.5rem;
+          margin: 1rem 0;
+          flex-wrap: wrap;
+        }
+
+        .invitation-meta .meta-item {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          color: rgba(255, 255, 255, 0.9);
+          font-size: 0.9rem;
+        }
+
+        .invitation-meta .icon {
+          font-size: 1rem;
+        }
+
+        .invitation-actions {
+          display: flex;
+          gap: 0.75rem;
+          margin-top: 1.25rem;
+          flex-wrap: wrap;
+        }
+
+        .invitation-actions .btn {
+          flex: 1;
+          min-width: 120px;
+          padding: 0.75rem 1.5rem;
+          border: none;
+          border-radius: 8px;
+          font-weight: 600;
+          font-size: 0.95rem;
+          cursor: pointer;
+          transition: all 0.2s;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.5rem;
+        }
+
+        .invitation-actions .btn.success {
+          background: white;
+          color: #38a169;
+        }
+
+        .invitation-actions .btn.success:hover {
+          background: #f0fff4;
+          transform: scale(1.03);
+        }
+
+        .invitation-actions .btn.secondary {
+          background: rgba(255, 255, 255, 0.2);
+          color: white;
+          border: 2px solid rgba(255, 255, 255, 0.5);
+        }
+
+        .invitation-actions .btn.secondary:hover {
+          background: rgba(255, 255, 255, 0.3);
+          border-color: white;
+        }
+
         /* Job Details Modal */
         .modal-overlay {
           position: fixed;
@@ -1167,6 +1419,29 @@ function EmployeeDashboard() {
         .date-posted {
           color: #718096;
           font-size: 0.9rem;
+        }
+
+        .employer-email {
+          color: #2b6cb0;
+          font-size: 0.9rem;
+          font-weight: 500;
+        }
+
+        .btn-message-employer {
+          display: inline-block;
+          margin-top: 0.75rem;
+          padding: 0.5rem 1rem;
+          background: #2b6cb0;
+          color: white;
+          text-decoration: none;
+          border-radius: 6px;
+          font-size: 0.875rem;
+          font-weight: 500;
+          transition: background-color 0.2s;
+        }
+
+        .btn-message-employer:hover {
+          background: #2c5282;
         }
 
         .location-match-badge {

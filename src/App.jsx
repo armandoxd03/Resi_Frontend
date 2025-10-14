@@ -24,6 +24,7 @@ import ResetRequest from './components/ResetRequest'
 import ResetPassword from './components/ResetPassword'
 import VerifyEmail from './components/VerifyEmail'
 import Notifications from './components/Notifications'
+import Messages from './components/Messages'
 
 // Layout component
 import Layout from './components/Layout'
@@ -182,6 +183,12 @@ function App() {
             <Route path="/notifications" element={
               <ProtectedRoute>
                 <Notifications />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/messages" element={
+              <ProtectedRoute>
+                <Messages />
               </ProtectedRoute>
             } />
             

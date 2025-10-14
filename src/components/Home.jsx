@@ -18,12 +18,20 @@ function Home() {
     try {
       const [jobsResponse, usersResponse] = await Promise.all([
         apiService.getPopularJobs().catch(() => ({ jobs: [] })),
-        // You may need to create an endpoint for top rated users
-        Promise.resolve({ users: [] })
+        apiService.getTopRated().catch((err) => {
+          console.error('Error loading top rated:', err);
+          return [];
+        })
       ])
       
+      console.log('Popular jobs response:', jobsResponse);
+      console.log('Top rated users response:', usersResponse);
+      
       setPopularJobs(jobsResponse.jobs || [])
-      setTopRatedUsers(usersResponse.users || [])
+      // The backend returns the array directly, not wrapped in an object
+      const topRated = Array.isArray(usersResponse) ? usersResponse : (usersResponse.users || usersResponse.data || []);
+      console.log('Setting top rated users:', topRated);
+      setTopRatedUsers(topRated)
     } catch (error) {
       console.error('Error loading data:', error)
     } finally {
@@ -130,35 +138,56 @@ function Home() {
 
       <section className="testimonials-section">
         <div className="testimonials-section-container">
-          <h2>Client Testimonials</h2>
+          <h2>Top Rated Workers</h2>
           <div className="testimonials-list">
             {loading ? (
-              <div className="no-data">📝 Loading testimonials...</div>
+              <div className="no-data">📝 Loading top rated workers...</div>
             ) : topRatedUsers.length > 0 ? (
               topRatedUsers.map((user, index) => (
-                <div key={index} className="testimonial-card">
-                  <div className="testimonial-stars">★★★★★</div>
-                  <div className="testimonial-content">
-                    "{user.testimonial || 'Excellent service!'}"
-                  </div>
-                  <div className="testimonial-footer">
-                    <div className="testimonial-avatar">
-                      {user.firstName?.[0] || 'U'}
+                <div key={user._id || index} className="testimonial-card">
+                  <div className="testimonial-header">
+                    <div className="testimonial-avatar-large">
+                      {user.profilePicture ? (
+                        <img src={user.profilePicture} alt={`${user.firstName} ${user.lastName}`} />
+                      ) : (
+                        user.firstName?.[0] || 'U'
+                      )}
                     </div>
-                    <div>
+                    <div className="testimonial-info">
                       <div className="testimonial-name">
                         {user.firstName} {user.lastName}
                       </div>
-                      <div className="testimonial-role">
-                        {user.userType || 'Service Provider'}
+                      <div className="testimonial-rating">
+                        <div className="testimonial-stars">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <span key={star} className={star <= Math.round(user.averageRating || 0) ? 'star filled' : 'star'}>
+                              ★
+                            </span>
+                          ))}
+                        </div>
+                        <span className="rating-score">
+                          {(user.averageRating || 0).toFixed(1)} ({user.ratingCount || 0} reviews)
+                        </span>
                       </div>
                     </div>
+                  </div>
+                  <div className="testimonial-skills">
+                    {user.skills && user.skills.length > 0 ? (
+                      user.skills.slice(0, 3).map((skill, idx) => (
+                        <span key={idx} className="skill-badge">{skill}</span>
+                      ))
+                    ) : (
+                      <span className="no-skills">No skills listed</span>
+                    )}
+                  </div>
+                  <div className="testimonial-location">
+                    📍 {user.barangay || 'Location not specified'}
                   </div>
                 </div>
               ))
             ) : (
               <div className="no-data">
-                💬 No testimonials available yet
+                💬 No top rated workers available yet
               </div>
             )}
           </div>
@@ -487,49 +516,97 @@ function Home() {
           transform: translateY(-4px);
           box-shadow: var(--shadow-xl);
         }
-        
-        .testimonial-stars {
-          color: var(--warning-500);
-          font-size: var(--font-size-xl);
-          margin-bottom: var(--spacing-4);
-        }
-        
-        .testimonial-content {
-          color: var(--gray-700);
-          margin-bottom: var(--spacing-6);
-          font-size: var(--font-size-base);
-          font-style: italic;
-          line-height: 1.6;
-        }
-        
-        .testimonial-footer {
+
+        .testimonial-header {
           display: flex;
           align-items: center;
           gap: var(--spacing-4);
+          margin-bottom: var(--spacing-4);
         }
-        
-        .testimonial-avatar {
-          width: 48px;
-          height: 48px;
+
+        .testimonial-avatar-large {
+          width: 60px;
+          height: 60px;
           border-radius: var(--radius-full);
-          background: linear-gradient(135deg, var(--success-500), var(--success-600));
+          background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
           display: flex;
           align-items: center;
           justify-content: center;
           font-weight: 600;
           color: white;
-          font-size: var(--font-size-lg);
+          font-size: 1.5rem;
+          flex-shrink: 0;
+          overflow: hidden;
         }
-        
+
+        .testimonial-avatar-large img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+
+        .testimonial-info {
+          flex: 1;
+        }
+
         .testimonial-name {
           font-weight: 600;
           color: var(--gray-800);
-          font-size: var(--font-size-base);
+          font-size: var(--font-size-lg);
+          margin-bottom: var(--spacing-1);
+        }
+
+        .testimonial-rating {
+          display: flex;
+          align-items: center;
+          gap: var(--spacing-2);
         }
         
-        .testimonial-role {
-          color: var(--gray-500);
+        .testimonial-stars {
+          display: flex;
+          gap: 2px;
+        }
+
+        .testimonial-stars .star {
+          color: #cbd5e0;
+          font-size: 1rem;
+        }
+
+        .testimonial-stars .star.filled {
+          color: #f59e0b;
+        }
+
+        .rating-score {
           font-size: var(--font-size-sm);
+          color: var(--gray-600);
+        }
+
+        .testimonial-skills {
+          display: flex;
+          flex-wrap: wrap;
+          gap: var(--spacing-2);
+          margin: var(--spacing-4) 0;
+        }
+
+        .skill-badge {
+          background: linear-gradient(135deg, var(--primary-50), var(--primary-100));
+          color: var(--primary-700);
+          padding: 0.25rem 0.75rem;
+          border-radius: var(--radius-full);
+          font-size: var(--font-size-sm);
+          font-weight: 500;
+        }
+
+        .no-skills {
+          color: var(--gray-400);
+          font-size: var(--font-size-sm);
+          font-style: italic;
+        }
+
+        .testimonial-location {
+          color: var(--gray-600);
+          font-size: var(--font-size-sm);
+          margin-top: var(--spacing-2);
         }
         
         .no-data {

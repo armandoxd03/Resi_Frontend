@@ -43,6 +43,11 @@ function EmployerDashboard() {
   // New state for invitation modal
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [selectedJobForInvite, setSelectedJobForInvite] = useState(null)
+  // New state for complete job modal
+  const [showCompleteModal, setShowCompleteModal] = useState(false)
+  const [jobToComplete, setJobToComplete] = useState(null)
+  const [rating, setRating] = useState(0)
+  const [ratingComment, setRatingComment] = useState('')
 
   const { user, hasAccessTo } = useContext(AuthContext)
   const { success, error: showError } = useContext(AlertContext)
@@ -196,6 +201,7 @@ function EmployerDashboard() {
   // State for worker ratings
   const [workerRatings, setWorkerRatings] = useState([]);
   const [loadingRatings, setLoadingRatings] = useState(false);
+  const [activeProfileTab, setActiveProfileTab] = useState('profile');
   const [showContactModal, setShowContactModal] = useState(false);
   const [contactMessage, setContactMessage] = useState('');
   const [reportModal, setReportModal] = useState({ isOpen: false, userId: null, userName: '' });
@@ -205,6 +211,7 @@ function EmployerDashboard() {
     try {
       setLoading(true);
       setWorkerRatings([]);
+      setActiveProfileTab('profile');
       
       // Get detailed worker profile and ratings in parallel
       const [profile, ratingsResponse] = await Promise.all([
@@ -356,22 +363,52 @@ function EmployerDashboard() {
     setShowEditModal(true);
   }
 
-  const completeJob = async (jobId) => {
-    if (window.confirm('Mark this job as completed? This will automatically transfer the job income to the worker\'s active financial goal.')) {
-      try {
-        // Use apiService instead of direct fetch
-        const result = await apiService.completeJob(jobId);
-        
-        success(result.alert || 'Job marked as completed successfully');
-        // Refresh the jobs list and dashboard stats
-        loadMyJobs();
-        loadDashboardStats();
-      } catch (error) {
-        console.error('Error completing job:', error);
-        showError(`Error completing job: ${error.message}`);
-      }
+  const openCompleteModal = (job) => {
+    setJobToComplete(job);
+    setRating(0);
+    setRatingComment('');
+    setShowCompleteModal(true);
+  };
+
+  const handleCompleteJob = async (e) => {
+    e.preventDefault();
+
+    if (rating === 0) {
+      showError('Please provide a rating for the worker');
+      return;
     }
-  }
+
+    if (!ratingComment.trim()) {
+      showError('Please provide feedback for the worker');
+      return;
+    }
+
+    try {
+      // First complete the job
+      const result = await apiService.completeJob(jobToComplete._id);
+      
+      // Then submit the rating
+      await apiService.rateUser({
+        ratedUserId: jobToComplete.assignedTo._id,
+        rating: rating,
+        comment: ratingComment,
+        jobId: jobToComplete._id
+      });
+
+      success('Job completed and rating submitted successfully');
+      setShowCompleteModal(false);
+      setJobToComplete(null);
+      setRating(0);
+      setRatingComment('');
+      
+      // Refresh the jobs list and dashboard stats
+      loadMyJobs();
+      loadDashboardStats();
+    } catch (error) {
+      console.error('Error completing job:', error);
+      showError(error.message || 'Failed to complete job');
+    }
+  };
 
   // Open delete confirmation modal
   const openDeleteModal = (job) => {
@@ -688,7 +725,7 @@ function EmployerDashboard() {
                         {job.assignedTo && !job.completed && (
                           <button 
                             className="btn success"
-                            onClick={() => completeJob(job._id)}
+                            onClick={() => openCompleteModal(job)}
                           >
                             Mark Completed
                           </button>
@@ -766,10 +803,23 @@ function EmployerDashboard() {
                   workers.map(worker => (
                     <div key={worker._id} className="worker-card">
                       <div className="worker-header">
-                        <h3>{worker.firstName} {worker.lastName}</h3>
-                        <div className="worker-rating">
-                          <span className="star-icon">★</span>
-                          {worker.avgRating ? worker.avgRating.toFixed(1) : 'N/A'}
+                        <div className="worker-header-left">
+                          <div className="worker-card-avatar">
+                            {worker.profilePicture ? (
+                              <img src={worker.profilePicture} alt={`${worker.firstName} ${worker.lastName}`} />
+                            ) : (
+                              <div className="avatar-placeholder">
+                                {worker.firstName?.[0]}{worker.lastName?.[0]}
+                              </div>
+                            )}
+                          </div>
+                          <div className="worker-header-info">
+                            <h3>{worker.firstName} {worker.lastName}</h3>
+                            <div className="worker-rating">
+                              <span className="star-icon">★</span>
+                              {worker.avgRating ? worker.avgRating.toFixed(1) : 'N/A'}
+                            </div>
+                          </div>
                         </div>
                       </div>
                       
@@ -1322,6 +1372,47 @@ function EmployerDashboard() {
           justify-content: space-between;
           align-items: flex-start;
           margin-bottom: 1rem;
+        }
+
+        .worker-header-left {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+          flex: 1;
+        }
+
+        .worker-card-avatar {
+          width: 60px;
+          height: 60px;
+          border-radius: 50%;
+          overflow: hidden;
+          flex-shrink: 0;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .worker-card-avatar img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+
+        .worker-card-avatar .avatar-placeholder {
+          width: 100%;
+          height: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: white;
+          font-size: 1.5rem;
+          font-weight: bold;
+          text-transform: uppercase;
+        }
+
+        .worker-header-info {
+          flex: 1;
         }
 
         .job-header h3, .worker-header h3 {
@@ -1887,6 +1978,59 @@ function EmployerDashboard() {
           color: #2d3748;
         }
         
+        /* Modal Footer Styles */
+        .modal-footer {
+          display: flex;
+          gap: 12px;
+          padding: 20px 24px;
+          border-top: 1px solid #eee;
+          background: #f9fafb;
+          border-radius: 0 0 16px 16px;
+        }
+
+        .modal-footer .btn {
+          flex: 1;
+          padding: 12px 24px;
+          border: none;
+          border-radius: 8px;
+          font-weight: 600;
+          font-size: 15px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .modal-footer .btn.primary {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+        }
+
+        .modal-footer .btn.primary:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .modal-footer .btn.accent {
+          background: #8b5cf6;
+          color: white;
+        }
+
+        .modal-footer .btn.accent:hover {
+          background: #7c3aed;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+        }
+
+        .modal-footer .btn.secondary {
+          background: white;
+          color: #666;
+          border: 2px solid #ddd;
+        }
+
+        .modal-footer .btn.secondary:hover {
+          background: #f5f5f5;
+          border-color: #999;
+        }
+        
         /* Contact Modal Styles */
         .contact-modal .modal-body {
           padding: 0;
@@ -1925,8 +2069,24 @@ function EmployerDashboard() {
         }
         
         .contact-details h3 {
-          margin: 0 0 0.5rem 0;
+          margin: 0 0 0.75rem 0;
           font-size: 1.5rem;
+        }
+
+        .worker-email,
+        .worker-phone,
+        .worker-skills {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          margin: 0.5rem 0;
+          color: #4a5568;
+          font-size: 0.95rem;
+        }
+
+        .worker-email {
+          color: #2b6cb0;
+          font-weight: 500;
         }
         
         .contact-number, .contact-email {
@@ -2410,6 +2570,99 @@ function EmployerDashboard() {
           border-top-color: #fff;
           animation: spin 1s ease-in-out infinite;
         }
+
+        /* Complete Job Modal Styles */
+        .complete-job-info {
+          background: #f7fafc;
+          padding: 1.5rem;
+          border-radius: 8px;
+          margin-bottom: 1.5rem;
+        }
+
+        .complete-job-info h4 {
+          margin: 0 0 0.5rem 0;
+          color: #2b6cb0;
+        }
+
+        .worker-info {
+          margin: 0.5rem 0;
+          color: #4a5568;
+        }
+
+        .job-price-info {
+          margin: 0.5rem 0;
+          color: #2f855a;
+          font-weight: 600;
+        }
+
+        .rating-section {
+          margin-bottom: 1.5rem;
+        }
+
+        .rating-label {
+          display: block;
+          margin-bottom: 1rem;
+          font-weight: 600;
+          color: #2d3748;
+        }
+
+        .star-rating {
+          display: flex;
+          gap: 0.5rem;
+          margin-bottom: 0.5rem;
+        }
+
+        .star {
+          background: none;
+          border: none;
+          font-size: 2.5rem;
+          color: #cbd5e0;
+          cursor: pointer;
+          transition: all 0.2s;
+          padding: 0;
+        }
+
+        .star:hover,
+        .star.filled {
+          color: #f6ad55;
+          transform: scale(1.1);
+        }
+
+        .rating-description {
+          color: #718096;
+          font-size: 0.9rem;
+          margin: 0.5rem 0;
+          min-height: 20px;
+        }
+
+        .complete-note {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          padding: 1rem;
+          background: #ebf8ff;
+          border-radius: 8px;
+          margin-top: 1rem;
+        }
+
+        .complete-note .note-icon {
+          font-size: 1.5rem;
+          flex-shrink: 0;
+        }
+
+        .complete-note .note-text {
+          font-size: 0.9rem;
+          color: #2c5282;
+          line-height: 1.4;
+        }
+
+        .char-count {
+          display: block;
+          text-align: right;
+          color: #718096;
+          font-size: 0.85rem;
+          margin-top: 0.25rem;
+        }
       `}</style>
 
       {/* Worker Profile Modal */}
@@ -2457,36 +2710,20 @@ function EmployerDashboard() {
               <div className="worker-profile-tabs">
                 <div className="tab-nav">
                   <button 
-                    className="tab-btn active" 
-                    id="info-tab"
-                    onClick={(e) => {
-                      document.querySelectorAll('.worker-profile-tabs .tab-btn').forEach(btn => 
-                        btn.classList.remove('active'));
-                      e.target.classList.add('active');
-                      document.querySelectorAll('.worker-profile-tabs .tab-content').forEach(content => 
-                        content.classList.remove('active'));
-                      document.getElementById('info-content').classList.add('active');
-                    }}
+                    className={`tab-btn ${activeProfileTab === 'profile' ? 'active' : ''}`}
+                    onClick={() => setActiveProfileTab('profile')}
                   >
                     Profile
                   </button>
                   <button 
-                    className="tab-btn" 
-                    id="ratings-tab"
-                    onClick={(e) => {
-                      document.querySelectorAll('.worker-profile-tabs .tab-btn').forEach(btn => 
-                        btn.classList.remove('active'));
-                      e.target.classList.add('active');
-                      document.querySelectorAll('.worker-profile-tabs .tab-content').forEach(content => 
-                        content.classList.remove('active'));
-                      document.getElementById('ratings-content').classList.add('active');
-                    }}
+                    className={`tab-btn ${activeProfileTab === 'ratings' ? 'active' : ''}`}
+                    onClick={() => setActiveProfileTab('ratings')}
                   >
                     Ratings & Reviews
                   </button>
                 </div>
                 
-                <div className="tab-content active" id="info-content">
+                <div className={`tab-content ${activeProfileTab === 'profile' ? 'active' : ''}`}>
                   <div className="worker-profile-section">
                     <h4>About</h4>
                     <p>{currentWorker.bio || 'No bio available'}</p>
@@ -2513,7 +2750,7 @@ function EmployerDashboard() {
                   </div>
                 </div>
                 
-                <div className="tab-content" id="ratings-content">
+                <div className={`tab-content ${activeProfileTab === 'ratings' ? 'active' : ''}`}>
                   <div className="ratings-container">
                     <div className="ratings-summary">
                       <div className="ratings-score">
@@ -2629,6 +2866,16 @@ function EmployerDashboard() {
                   </div>
                   <div className="contact-details">
                     <h3>{currentWorker.firstName} {currentWorker.lastName}</h3>
+                    <p className="worker-email">
+                      <span className="contact-icon">✉️</span>
+                      {currentWorker.email}
+                    </p>
+                    {currentWorker.mobileNo && (
+                      <p className="worker-phone">
+                        <span className="contact-icon">📱</span>
+                        {currentWorker.mobileNo}
+                      </p>
+                    )}
                     {currentWorker.skills && currentWorker.skills.length > 0 && (
                       <p className="worker-skills">
                         <span className="contact-icon">⚒️</span>
@@ -2825,6 +3072,90 @@ function EmployerDashboard() {
                 Cancel
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Complete Job Modal */}
+      {showCompleteModal && jobToComplete && (
+        <div className="modal-overlay" onClick={() => setShowCompleteModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Complete Job & Rate Worker</h3>
+              <button className="modal-close" onClick={() => setShowCompleteModal(false)}>×</button>
+            </div>
+            
+            <form onSubmit={handleCompleteJob}>
+              <div className="modal-body">
+                <div className="complete-job-info">
+                  <h4>{jobToComplete.title}</h4>
+                  <p className="worker-info">
+                    Worker: <strong>{jobToComplete.assignedTo?.firstName} {jobToComplete.assignedTo?.lastName}</strong>
+                  </p>
+                  <p className="job-price-info">Payment: {formatPrice(jobToComplete.price)}</p>
+                </div>
+
+                <div className="rating-section">
+                  <label className="rating-label">Rate the Worker's Performance *</label>
+                  <div className="star-rating">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        className={`star ${rating >= star ? 'filled' : ''}`}
+                        onClick={() => setRating(star)}
+                      >
+                        ★
+                      </button>
+                    ))}
+                  </div>
+                  <p className="rating-description">
+                    {rating === 0 && 'Select a rating'}
+                    {rating === 1 && 'Poor - Did not meet expectations'}
+                    {rating === 2 && 'Fair - Below expectations'}
+                    {rating === 3 && 'Good - Met expectations'}
+                    {rating === 4 && 'Very Good - Exceeded expectations'}
+                    {rating === 5 && 'Excellent - Outstanding work!'}
+                  </p>
+                </div>
+
+                <div className="form-group">
+                  <label>Feedback for the Worker *</label>
+                  <textarea
+                    value={ratingComment}
+                    onChange={(e) => setRatingComment(e.target.value)}
+                    placeholder="Share your experience working with this person. This helps build their reputation..."
+                    rows="4"
+                    required
+                    minLength="10"
+                  />
+                  <small className="char-count">{ratingComment.length} characters</small>
+                </div>
+
+                <div className="complete-note">
+                  <span className="note-icon">💡</span>
+                  <span className="note-text">
+                    Completing this job will transfer the payment ({formatPrice(jobToComplete.price)}) to the worker's active financial goal.
+                  </span>
+                </div>
+              </div>
+              
+              <div className="modal-footer">
+                <button 
+                  type="button"
+                  className="btn secondary" 
+                  onClick={() => setShowCompleteModal(false)}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  className="btn success"
+                >
+                  Complete Job & Submit Rating
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

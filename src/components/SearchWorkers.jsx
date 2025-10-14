@@ -32,6 +32,9 @@ function SearchWorkers() {
   const [myJobs, setMyJobs] = useState([])
   const [selectedJobForInvite, setSelectedJobForInvite] = useState(null)
   const [sendingInvitation, setSendingInvitation] = useState(false)
+  const [workerRatings, setWorkerRatings] = useState([])
+  const [loadingRatings, setLoadingRatings] = useState(false)
+  const [activeProfileTab, setActiveProfileTab] = useState('profile')
   
   const { user, isLoggedIn } = useContext(AuthContext)
   const { success, error: showError } = useContext(AlertContext)
@@ -143,7 +146,11 @@ function SearchWorkers() {
       
       if (data && data.user) {
         setCurrentWorker(data.user);
+        setActiveProfileTab('profile');
         setShowWorkerModal(true);
+        
+        // Load worker ratings
+        loadWorkerRatings(userId, token);
       } else {
         showError('Failed to load worker profile');
       }
@@ -152,6 +159,29 @@ function SearchWorkers() {
       showError('An error occurred while loading the profile');
     } finally {
       setLoading(false);
+    }
+  }
+
+  const loadWorkerRatings = async (workerId, token) => {
+    try {
+      setLoadingRatings(true);
+      const response = await fetch(`${API_BASE}/ratings/${workerId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      const data = await response.json();
+      if (response.ok && data.ratings) {
+        setWorkerRatings(data.ratings);
+      } else {
+        setWorkerRatings([]);
+      }
+    } catch (error) {
+      console.error('Error loading ratings:', error);
+      setWorkerRatings([]);
+    } finally {
+      setLoadingRatings(false);
     }
   }
   
@@ -391,11 +421,15 @@ function SearchWorkers() {
             >
               <div className="worker-header">
                 <div className="worker-info-header">
-                  {worker.profilePicture && (
-                    <div className="worker-avatar">
+                  <div className="worker-avatar">
+                    {worker.profilePicture ? (
                       <img src={worker.profilePicture} alt={`${worker.firstName} ${worker.lastName}`} />
-                    </div>
-                  )}
+                    ) : (
+                      <div className="avatar-placeholder">
+                        {worker.firstName?.[0]}{worker.lastName?.[0]}
+                      </div>
+                    )}
+                  </div>
                   <h3>{worker.firstName} {worker.lastName}</h3>
                 </div>
                 <div className="worker-rating">
@@ -543,22 +577,20 @@ function SearchWorkers() {
               <div className="worker-profile-tabs">
                 <div className="tab-nav">
                   <button 
-                    className="tab-btn active" 
-                    id="info-tab"
-                    onClick={(e) => {
-                      document.querySelectorAll('.worker-profile-tabs .tab-btn').forEach(btn => 
-                        btn.classList.remove('active'));
-                      e.target.classList.add('active');
-                      document.querySelectorAll('.worker-profile-tabs .tab-content').forEach(content => 
-                        content.classList.remove('active'));
-                      document.getElementById('info-content').classList.add('active');
-                    }}
+                    className={`tab-btn ${activeProfileTab === 'profile' ? 'active' : ''}`}
+                    onClick={() => setActiveProfileTab('profile')}
                   >
                     Profile
                   </button>
+                  <button 
+                    className={`tab-btn ${activeProfileTab === 'ratings' ? 'active' : ''}`}
+                    onClick={() => setActiveProfileTab('ratings')}
+                  >
+                    Ratings & Reviews
+                  </button>
                 </div>
                 
-                <div className="tab-content active" id="info-content">
+                <div className={`tab-content ${activeProfileTab === 'profile' ? 'active' : ''}`} id="info-content">
                   <div className="worker-profile-section">
                     <h4>About</h4>
                     <p>{currentWorker.bio || 'No bio available'}</p>
@@ -577,29 +609,110 @@ function SearchWorkers() {
                     <h4>Experience</h4>
                     <p>{currentWorker.yearsExperience ? `${currentWorker.yearsExperience} years` : 'No experience information provided'}</p>
                   </div>
+                  
+                  <div className="worker-profile-section">
+                    <h4>Contact Information</h4>
+                    {currentWorker.email && (
+                      <p><strong>Email:</strong> {currentWorker.email}</p>
+                    )}
+                    {currentWorker.mobileNo && (
+                      <p><strong>Phone:</strong> {currentWorker.mobileNo}</p>
+                    )}
+                  </div>
+                </div>
+                
+                <div className={`tab-content ${activeProfileTab === 'ratings' ? 'active' : ''}`} id="ratings-content">
+                  <div className="ratings-container">
+                    <div className="ratings-summary">
+                      <div className="ratings-score">
+                        <span className="big-score">{(currentWorker.averageRating || 0).toFixed(1)}</span>
+                        <span className="big-stars">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <span 
+                              key={star} 
+                              className={star <= (currentWorker.averageRating || 0) ? "star filled" : "star"}>
+                              ★
+                            </span>
+                          ))}
+                        </span>
+                        <span className="rating-count">({workerRatings.length || 0} reviews)</span>
+                      </div>
+                    </div>
+                    
+                    <div className="ratings-list">
+                      {loadingRatings ? (
+                        <div className="loading-ratings">Loading reviews...</div>
+                      ) : workerRatings.length > 0 ? (
+                        workerRatings.map(rating => (
+                          <div key={rating._id} className="rating-card">
+                            <div className="rating-header">
+                              <div className="rater-info">
+                                <span className="rater-name">
+                                  {rating.rater?.firstName} {rating.rater?.lastName}
+                                </span>
+                                <span className="rating-date">
+                                  {new Date(rating.createdAt).toLocaleDateString()}
+                                </span>
+                              </div>
+                              <div className="rating-stars">
+                                {[1, 2, 3, 4, 5].map(star => (
+                                  <span 
+                                    key={star}
+                                    className={star <= rating.rating ? "star filled" : "star"}>
+                                    ★
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                            {rating.comment && (
+                              <div className="rating-comment">{rating.comment}</div>
+                            )}
+                            {rating.job && (
+                              <div className="rating-job">
+                                <span className="job-label">Job: </span>
+                                <span className="job-title">{rating.job.title}</span>
+                              </div>
+                            )}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="no-ratings">No reviews yet</div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
               
-              <div className="worker-profile-actions">
-                <button 
-                  className="contact-btn" 
-                  onClick={() => {
-                    setShowWorkerModal(false);
-                    handleContactWorker(currentWorker);
-                  }}
-                >
-                  Contact Worker
-                </button>
-                <button 
-                  className="invite-btn" 
-                  onClick={() => {
-                    setShowWorkerModal(false);
-                    handleInviteWorker(currentWorker);
-                  }}
-                >
-                  Invite to Job
-                </button>
-              </div>
+            </div>
+            
+            <div className="modal-footer">
+              <button 
+                className="btn primary" 
+                onClick={() => {
+                  setShowWorkerModal(false);
+                  handleContactWorker(currentWorker);
+                }}
+                aria-label={`Contact ${currentWorker.firstName}`}
+              >
+                Contact
+              </button>
+              <button 
+                className="btn accent"
+                onClick={() => {
+                  setShowWorkerModal(false);
+                  handleInviteWorker(currentWorker);
+                }}
+                aria-label={`Invite ${currentWorker.firstName} to job`}
+              >
+                Invite to Job
+              </button>
+              <button 
+                className="btn secondary" 
+                onClick={() => setShowWorkerModal(false)}
+                aria-label="Close modal"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
@@ -630,24 +743,52 @@ function SearchWorkers() {
                 </div>
                 <div className="worker-details">
                   <h3>{currentWorker.firstName} {currentWorker.lastName}</h3>
+                  {currentWorker.email && (
+                    <p className="worker-email-display">
+                      <span className="contact-icon">✉️</span>
+                      {currentWorker.email}
+                    </p>
+                  )}
+                  {currentWorker.mobileNo && (
+                    <p className="worker-phone-display">
+                      <span className="contact-icon">📱</span>
+                      {currentWorker.mobileNo}
+                    </p>
+                  )}
                   <p>{currentWorker.skills && currentWorker.skills.length > 0 
                     ? currentWorker.skills.slice(0, 3).join(', ') + (currentWorker.skills.length > 3 ? '...' : '')
                     : 'No skills listed'}</p>
                 </div>
               </div>
               
+              <div className="contact-actions">
+                <Link
+                  to="/messages"
+                  state={{
+                    recipientEmail: currentWorker.email,
+                    recipientName: `${currentWorker.firstName} ${currentWorker.lastName}`,
+                    subject: `Job Opportunity Inquiry`
+                  }}
+                  className="direct-message-btn"
+                  onClick={() => setShowContactModal(false)}
+                >
+                  💬 Send Direct Message
+                </Link>
+                <p style={{textAlign: 'center', margin: '1rem 0', color: '#64748b'}}>or use quick message below</p>
+              </div>
+
               <div className="message-form">
-                <label htmlFor="contactMessage">Message</label>
+                <label htmlFor="contactMessage">Quick Message</label>
                 <textarea
                   id="contactMessage"
                   value={contactMessage}
                   onChange={(e) => setContactMessage(e.target.value)}
-                  placeholder="Type your message here..."
-                  rows={5}
+                  placeholder="Type a quick message here..."
+                  rows={4}
                 ></textarea>
                 
                 <button className="send-message-btn" onClick={sendMessage}>
-                  Send Message
+                  Send Quick Message
                 </button>
               </div>
             </div>
@@ -989,14 +1130,29 @@ function SearchWorkers() {
           height: 50px;
           border-radius: 50%;
           overflow: hidden;
-          background: #e2e8f0;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
           flex-shrink: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
         
         .worker-avatar img {
           width: 100%;
           height: 100%;
           object-fit: cover;
+        }
+
+        .worker-avatar .avatar-placeholder {
+          width: 100%;
+          height: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: white;
+          font-size: 1.2rem;
+          font-weight: bold;
+          text-transform: uppercase;
         }
 
         .worker-header h3 {
@@ -1211,6 +1367,46 @@ function SearchWorkers() {
           border-radius: 50%;
         }
         
+        .worker-email-display,
+        .worker-phone-display {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          color: #2b6cb0;
+          font-size: 0.9rem;
+          font-weight: 500;
+          margin: 0.25rem 0;
+        }
+
+        .contact-icon {
+          font-size: 1rem;
+        }
+
+        .contact-actions {
+          margin-bottom: 1.5rem;
+          padding: 1rem;
+          background: #f8fafc;
+          border-radius: 8px;
+        }
+
+        .direct-message-btn {
+          display: block;
+          width: 100%;
+          background: #2b6cb0;
+          color: white;
+          text-decoration: none;
+          text-align: center;
+          padding: 0.875rem 1.5rem;
+          border-radius: 8px;
+          font-size: 1rem;
+          font-weight: 500;
+          transition: background-color 0.2s;
+        }
+
+        .direct-message-btn:hover {
+          background: #2c5282;
+        }
+
         .message-form {
           display: flex;
           flex-direction: column;
@@ -1227,7 +1423,7 @@ function SearchWorkers() {
           border: 2px solid #e2e8f0;
           border-radius: 8px;
           resize: vertical;
-          min-height: 120px;
+          min-height: 100px;
           font-family: inherit;
           font-size: 1rem;
         }
@@ -1239,7 +1435,7 @@ function SearchWorkers() {
         }
         
         .send-message-btn {
-          background: #2b6cb0;
+          background: #38a169;
           color: white;
           border: none;
           padding: 0.75rem 1.5rem;
@@ -1252,7 +1448,7 @@ function SearchWorkers() {
         }
         
         .send-message-btn:hover {
-          background: #2c5282;
+          background: #2f855a;
         }
         
         .invitation-instruction {
@@ -1658,6 +1854,58 @@ function SearchWorkers() {
           margin-top: 1rem;
           border-top: 1px solid #e2e8f0;
           padding-top: 1.5rem;
+        }
+
+        .modal-footer {
+          display: flex;
+          gap: 12px;
+          padding: 20px 24px;
+          border-top: 1px solid #eee;
+          background: #f9fafb;
+          border-radius: 0 0 16px 16px;
+        }
+
+        .modal-footer .btn {
+          flex: 1;
+          padding: 12px 24px;
+          border: none;
+          border-radius: 8px;
+          font-weight: 600;
+          font-size: 15px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .modal-footer .btn.primary {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+        }
+
+        .modal-footer .btn.primary:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .modal-footer .btn.accent {
+          background: #8b5cf6;
+          color: white;
+        }
+
+        .modal-footer .btn.accent:hover {
+          background: #7c3aed;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+        }
+
+        .modal-footer .btn.secondary {
+          background: white;
+          color: #666;
+          border: 2px solid #ddd;
+        }
+
+        .modal-footer .btn.secondary:hover {
+          background: #f5f5f5;
+          border-color: #999;
         }
 
         .spinner {
