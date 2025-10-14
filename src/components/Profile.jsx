@@ -720,36 +720,52 @@ function Profile() {
         .skills-input-container {
           display: flex;
           gap: 0.5rem;
-          margin-bottom: 1rem;
+          margin-bottom: 1.25rem;
         }
         .skills-input-container input {
           flex: 1;
-          padding: 0.75rem 1rem;
+          padding: 0.65rem 1rem;
           border: 1.5px solid #e2e8f0;
           border-radius: 8px;
-          font-size: 1rem;
+          font-size: 0.95rem;
+          transition: border-color 0.2s;
+        }
+        .skills-input-container input:focus {
+          outline: none;
+          border-color: #6366f1;
         }
         .add-skill-btn {
-          padding: 0.75rem 1rem;
-          background: #38a169;
+          padding: 0.65rem 1.25rem;
+          background: #6366f1;
           color: white;
           border: none;
           border-radius: 8px;
           cursor: pointer;
           font-weight: 500;
-          transition: background 0.2s;
+          font-size: 0.9rem;
+          transition: all 0.2s;
+          white-space: nowrap;
         }
         .add-skill-btn:hover {
-          background: #2f855a;
+          background: #4f46e5;
+          transform: translateY(-1px);
+          box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
         }
         .common-skills {
-          margin-bottom: 1rem;
+          margin-bottom: 1.25rem;
+          padding: 1rem;
+          background: #f8fafc;
+          border-radius: 10px;
+          border: 1px solid #e2e8f0;
         }
         .common-skills label {
           display: block;
-          font-size: 0.9rem;
-          margin-bottom: 0.5rem;
-          color: #4a5568;
+          font-size: 0.85rem;
+          font-weight: 600;
+          margin-bottom: 0.75rem;
+          color: #334155;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
         }
         .common-skills-options {
           display: flex;
@@ -757,55 +773,68 @@ function Profile() {
           gap: 0.5rem;
         }
         .common-skill-option {
-          background: #f1f5f9;
-          border: 1px solid #e2e8f0;
-          color: #4a5568;
-          padding: 0.4rem 0.8rem;
-          border-radius: 16px;
+          background: white;
+          border: 1.5px solid #e2e8f0;
+          color: #475569;
+          padding: 0.45rem 0.85rem;
+          border-radius: 20px;
           font-size: 0.85rem;
+          font-weight: 500;
           cursor: pointer;
-          transition: all 0.2s;
+          transition: all 0.2s ease;
+          white-space: nowrap;
         }
         .common-skill-option:hover {
-          background: #e2e8f0;
+          background: #f1f5f9;
+          border-color: #cbd5e1;
+          transform: translateY(-1px);
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
         }
         .common-skill-option.selected {
-          background: #e9f7ef;
-          border-color: #38a169;
-          color: #2f855a;
+          background: #6366f1;
+          border-color: #6366f1;
+          color: white;
+          box-shadow: 0 2px 8px rgba(99, 102, 241, 0.25);
         }
         .skills-container {
           display: flex;
           flex-wrap: wrap;
-          gap: 0.5rem;
+          gap: 0.6rem;
           margin-top: 1rem;
-          padding: 1rem;
-          background: #f8f9fa;
-          border-radius: 8px;
-          min-height: 50px;
+          padding: 1.25rem;
+          background: #ffffff;
+          border-radius: 10px;
+          border: 1.5px solid #e2e8f0;
+          min-height: 60px;
         }
         .skill-tag {
           display: inline-flex;
           align-items: center;
-          gap: 0.25rem;
-          background: #2b6cb0;
+          gap: 0.4rem;
+          background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
           color: white;
-          padding: 0.5rem 0.75rem;
-          border-radius: 16px;
-          font-size: 0.9rem;
+          padding: 0.5rem 0.85rem;
+          border-radius: 20px;
+          font-size: 0.85rem;
           font-weight: 500;
-          margin: 0.2rem;
+          box-shadow: 0 2px 6px rgba(99, 102, 241, 0.2);
+          transition: all 0.2s ease;
+        }
+        .skill-tag:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
         }
         .remove-skill {
-          background: rgba(255, 255, 255, 0.1);
+          background: rgba(255, 255, 255, 0.2);
           border: none;
           color: white;
           cursor: pointer;
-          font-size: 0.95rem;
+          font-size: 1rem;
+          font-weight: 600;
           padding: 0;
-          margin-left: 0.5rem;
-          width: 20px;
-          height: 20px;
+          margin-left: 0.25rem;
+          width: 18px;
+          height: 18px;
           border-radius: 50%;
           display: inline-flex;
           align-items: center;
@@ -814,8 +843,8 @@ function Profile() {
           transition: all 0.2s ease;
         }
         .remove-skill:hover {
-          background: rgba(255, 255, 255, 0.3);
-          transform: scale(1.1);
+          background: rgba(255, 255, 255, 0.35);
+          transform: scale(1.15);
         }
         .skills-checkbox-group {
           display: grid;
