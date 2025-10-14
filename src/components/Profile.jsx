@@ -519,28 +519,28 @@ function Profile() {
         /* Edit Profile Modal Modern Styles */
         .modal-content {
           background: #fff;
-          border-radius: 16px;
-          padding: 3rem 7vw 3rem 7vw;
-          min-width: 340px;
-          width: 100%;
-          max-width: 1000px;
-          padding: 4rem 7vw 4rem 7vw;
+          border-radius: 12px;
+          padding: 2rem;
+          width: 90%;
+          max-width: 600px;
+          max-height: 85vh;
+          overflow-y: auto;
           margin: 0 auto;
-          box-shadow: 0 4px 24px rgba(34, 41, 47, 0.10), 0 1.5px 6px rgba(0,0,0,0.04);
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
         }
         .modal-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          margin-bottom: 2rem;
+          margin-bottom: 1.5rem;
           padding-bottom: 1rem;
-          border-bottom: 2px solid #f1f5f9;
+          border-bottom: 2px solid #e2e8f0;
         }
         .modal-header h3 {
           font-size: 1.5rem;
-          font-weight: 700;
-          color: #1e293b;
-          letter-spacing: -0.02em;
+          font-weight: 600;
+          color: #2b6cb0;
+          margin: 0;
         }
         .close-btn {
           background: #f1f5f9;
@@ -565,15 +565,114 @@ function Profile() {
         .edit-form {
           display: flex;
           flex-direction: column;
-          gap: 2.8rem;
-          align-items: center;
-          max-width: 700px;
-          margin: 0 auto;
-          margin: 0 auto;
+          gap: 1.5rem;
         }
+        
+        .profile-picture-section {
+          text-align: center !important;
+          margin-bottom: 1.5rem !important;
+          display: flex !important;
+          flex-direction: column !important;
+          align-items: center !important;
+          justify-content: center !important;
+          gap: 0 !important;
+          width: 100% !important;
+        }
+
+        .profile-picture-section > label {
+          font-weight: 600;
+          color: #2d3748;
+          margin-bottom: 1rem;
+          font-size: 0.95rem;
+          text-align: center;
+        }
+        
+        .profile-picture-upload {
+          display: flex !important;
+          justify-content: center !important;
+          align-items: center !important;
+          margin-bottom: 0 !important;
+          width: 100% !important;
+        }
+        
+        .current-picture {
+          width: 150px !important;
+          height: 150px !important;
+          min-width: 150px !important;
+          min-height: 150px !important;
+          max-width: 150px !important;
+          max-height: 150px !important;
+          border-radius: 50% !important;
+          overflow: hidden !important;
+          border: 4px solid #e2e8f0 !important;
+          box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12) !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          margin: 0 auto !important;
+        }
+        
+        .current-picture img,
+        .profile-picture-section .current-picture img,
+        .edit-form .current-picture img {
+          width: 100% !important;
+          height: 100% !important;
+          min-width: 100% !important;
+          min-height: 100% !important;
+          max-width: 100% !important;
+          max-height: 100% !important;
+          object-fit: cover !important;
+          display: block !important;
+          border-radius: 0 !important;
+        }
+        
+        .avatar-placeholder-md {
+          width: 150px !important;
+          height: 150px !important;
+          border-radius: 50% !important;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          font-size: 3rem;
+          font-weight: bold;
+          color: white;
+        }
+        
+        .upload-controls {
+          display: flex !important;
+          flex-direction: column !important;
+          gap: 0.5rem;
+          align-items: center !important;
+          width: 100%;
+          margin-top: 1rem !important;
+        }
+        
+        .upload-btn {
+          padding: 0.7rem 1.5rem !important;
+          background: #2b6cb0 !important;
+          color: white !important;
+          border-radius: 8px !important;
+          cursor: pointer !important;
+          font-weight: 600 !important;
+          font-size: 0.95rem !important;
+          transition: background 0.2s !important;
+          border: none !important;
+          display: inline-block !important;
+        }
+        
+        .upload-btn:hover {
+          background: #2c5282;
+        }
+        
+        .upload-hint {
+          color: #718096;
+          font-size: 0.85rem;
+        }
+        
         .edit-form .form-row {
           display: flex;
-          gap: 1.5rem;
+          gap: 1rem;
           flex-wrap: wrap;
         }
         .edit-form .form-group {
@@ -581,27 +680,30 @@ function Profile() {
           flex-direction: column;
           gap: 0.5rem;
           width: 100%;
-          background: #f6f8fa;
-          border-radius: 14px;
-          box-shadow: 0 2px 12px rgba(34,41,47,0.10);
-          padding: 1.2rem 1.5rem 1.2rem 1.5rem;
-          margin-bottom: 3rem;
+          margin-bottom: 0;
         }
         .edit-form label {
           font-weight: 600;
-          color: #22314a;
-          margin-bottom: 0.5rem;
+          color: #2d3748;
+          margin-bottom: 0.25rem;
+          font-size: 0.95rem;
         }
         .edit-form input,
         .edit-form select,
         .edit-form textarea {
-          padding: 1.1rem 1.2rem;
-          border-radius: 8px;
-          border: 1.5px solid #e2e8f0;
-          font-size: 1.08rem;
-          background: #f8fafc;
-          color: #22314a;
-          margin-bottom: 0;
+          padding: 0.75rem;
+          border-radius: 6px;
+          border: 2px solid #e2e8f0;
+          font-size: 1rem;
+          background: #fff;
+          color: #2d3748;
+          transition: border-color 0.2s;
+        }
+        .edit-form input:focus,
+        .edit-form select:focus,
+        .edit-form textarea:focus {
+          outline: none;
+          border-color: #2b6cb0;
         }
         .edit-form textarea {
           resize: vertical;
@@ -770,24 +872,45 @@ function Profile() {
           cursor: pointer;
           transition: background 0.2s, color 0.2s;
         }
+        .modal-actions {
+          display: flex;
+          gap: 1rem;
+          justify-content: flex-end;
+          margin-top: 2rem;
+          padding-top: 1.5rem;
+          border-top: 1px solid #e2e8f0;
+        }
         .btn-primary {
-          background: #38a169;
+          background: #2b6cb0;
           color: #fff;
+          padding: 0.75rem 1.5rem;
+          border-radius: 6px;
+          font-weight: 500;
         }
         .btn-primary:hover {
-          background: #2f855a;
+          background: #2c5282;
         }
         .btn-secondary {
           background: #e2e8f0;
-          color: #22314a;
+          color: #2d3748;
+          padding: 0.75rem 1.5rem;
+          border-radius: 6px;
+          font-weight: 500;
         }
         .btn-secondary:hover {
           background: #cbd5e1;
         }
-        @media (max-width: 600px) {
+        @media (max-width: 768px) {
           .modal-content {
-            padding: 1.2rem 0.5rem;
-            min-width: 90vw;
+            width: 95%;
+            padding: 1.5rem;
+          }
+          .profile-picture-upload {
+            flex-direction: column;
+            gap: 1rem;
+          }
+          .upload-controls {
+            align-items: center;
           }
           .edit-form .form-row {
             flex-direction: column;
@@ -824,19 +947,6 @@ function Profile() {
                 {profile?.firstName?.[0]}{profile?.lastName?.[0]}
               </div>
             )}
-            <div className="avatar-upload-lg">
-              <input
-                type="file"
-                id="profilePictureInput"
-                accept="image/*"
-                onChange={handleProfilePictureUpload}
-                style={{ display: 'none' }}
-                disabled={uploading}
-              />
-              <label htmlFor="profilePictureInput" className="upload-btn-lg">
-                {uploading ? 'Uploading...' : 'Change Photo'}
-              </label>
-            </div>
           </div>
           <div className="profile-name-section">
             <h1>{profile?.firstName} {profile?.lastName}</h1>
@@ -1018,14 +1128,6 @@ function Profile() {
         </div>
 
         <div className="profile-section">
-          <h2>Languages Spoken</h2>
-          <div className="profile-languages">
-            <span className="profile-lang-tag">Tagalog</span>
-            <span className="profile-lang-tag">English</span>
-          </div>
-        </div>
-
-        <div className="profile-section">
           <h2>Contact Information</h2>
           <div className="profile-contact">
             <div>{profile?.email}</div>
@@ -1058,7 +1160,36 @@ function Profile() {
                 <h3>Edit Profile</h3>
               </div>
               <form onSubmit={handleSaveProfile} className="edit-form">
-                {/* ...existing edit form code... */}
+                {/* Profile Picture Upload */}
+                <div className="form-group profile-picture-section">
+                  <label>Profile Picture</label>
+                  <div className="profile-picture-upload">
+                    <div className="current-picture">
+                      {profile?.profilePicture ? (
+                        <img src={getProfilePictureUrl(profile)} alt="Current Profile" />
+                      ) : (
+                        <div className="avatar-placeholder-md">
+                          {profile?.firstName?.[0]}{profile?.lastName?.[0]}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="upload-controls">
+                    <input
+                      type="file"
+                      id="profilePictureInputModal"
+                      accept="image/*"
+                      onChange={handleProfilePictureUpload}
+                      style={{ display: 'none' }}
+                      disabled={uploading}
+                    />
+                    <label htmlFor="profilePictureInputModal" className="upload-btn">
+                      {uploading ? 'Uploading...' : 'Change Photo'}
+                    </label>
+                    <small className="upload-hint">JPG, PNG or GIF (max 5MB)</small>
+                  </div>
+                </div>
+                
                 <div className="form-row">
                   <div className="form-group">
                     <label htmlFor="firstName">First Name</label>
@@ -1107,6 +1238,68 @@ function Profile() {
                     <option value="other">Other</option>
                   </select>
                 </div>
+                
+                <div className="form-group">
+                  <label htmlFor="email">Email</label>
+                  <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    value={editFormData.email}
+                    onChange={handleInputChange}
+                    required
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label htmlFor="userType">Account Type</label>
+                  <select
+                    id="userType"
+                    name="userType"
+                    value={editFormData.userType}
+                    onChange={handleInputChange}
+                    required
+                  >
+                    <option value="employee">Employee</option>
+                    <option value="employer">Employer</option>
+                    <option value="both">Both</option>
+                  </select>
+                  <small className="form-helper-text">Choose your account type: Employee, Employer or Both</small>
+                </div>
+                <div className="form-group">
+                  <label htmlFor="address">Address</label>
+                  <input
+                    type="text"
+                    id="address"
+                    name="address"
+                    value={editFormData.address}
+                    onChange={handleInputChange}
+                  />
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label htmlFor="barangay">Barangay</label>
+                    <input
+                      type="text"
+                      id="barangay"
+                      name="barangay"
+                      value={editFormData.barangay}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label htmlFor="mobileNo">Mobile Number</label>
+                  <input
+                    type="tel"
+                    id="mobileNo"
+                    name="mobileNo"
+                    value={editFormData.mobileNo}
+                    onChange={handleInputChange}
+                  />
+                </div>
+                
+                {/* Skills Section - Moved to Bottom */}
                 <div className="form-group">
                   <label htmlFor="skills">Skills</label>
                   <div className="skills-section">
@@ -1175,68 +1368,8 @@ function Profile() {
                       </div>
                     )}
                   </div>
+                </div>
                 
-                </div>
-                <div className="form-group">
-                  <label htmlFor="userType">Account Type</label>
-                  <select
-                    id="userType"
-                    name="userType"
-                    value={editFormData.userType}
-                    onChange={handleInputChange}
-                    required
-                  >
-                    <option value="employee">Employee</option>
-                    <option value="employer">Employer</option>
-                    <option value="both">Both</option>
-                  </select>
-                  <small className="form-helper-text">Choose your account type: Employee, Employer or Both</small>
-                </div>
-                <div className="form-group">
-                  <label htmlFor="email">Email</label>
-                  <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    value={editFormData.email}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label htmlFor="mobileNo">Mobile Number</label>
-                  <input
-                    type="tel"
-                    id="mobileNo"
-                    name="mobileNo"
-                    value={editFormData.mobileNo}
-                    onChange={handleInputChange}
-                  />
-                </div>
-                <div className="form-group">
-                  <label htmlFor="address">Address</label>
-                  <input
-                    type="text"
-                    id="address"
-                    name="address"
-                    value={editFormData.address}
-                    onChange={handleInputChange}
-                  />
-                </div>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label htmlFor="barangay">Barangay</label>
-                    <input
-                      type="text"
-                      id="barangay"
-                      name="barangay"
-                      value={editFormData.barangay}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                </div>
-                {/* Bio and Gender fields moved above userType field */}
-                {/* ...other form fields... */}
                 <div className="modal-actions">
                   <button type="button" onClick={() => setShowEditModal(false)} className="btn btn-secondary">
                     Cancel
@@ -2745,6 +2878,45 @@ function Profile() {
             width: 90%;
             padding: 1.5rem;
           }
+        }
+        
+        /* CRITICAL: Profile Picture Edit Modal Overrides */
+        .edit-form .profile-picture-section .current-picture {
+          width: 150px !important;
+          height: 150px !important;
+          min-width: 150px !important;
+          min-height: 150px !important;
+          max-width: 150px !important;
+          max-height: 150px !important;
+          border-radius: 50% !important;
+          overflow: hidden !important;
+          border: 4px solid #e2e8f0 !important;
+          box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12) !important;
+          margin: 0 auto !important;
+        }
+        
+        .edit-form .profile-picture-section .current-picture img {
+          width: 100% !important;
+          height: 100% !important;
+          object-fit: cover !important;
+          display: block !important;
+        }
+        
+        .edit-form .upload-controls {
+          display: flex !important;
+          flex-direction: column !important;
+          align-items: center !important;
+          margin-top: 1rem !important;
+        }
+        
+        .edit-form .upload-btn {
+          display: inline-block !important;
+          padding: 0.7rem 1.5rem !important;
+          background: #2b6cb0 !important;
+          color: white !important;
+          cursor: pointer !important;
+          font-weight: 600 !important;
+          border-radius: 8px !important;
         }
       `}</style>
     </div>
