@@ -1,3 +1,40 @@
+  // Add touched and fieldErrors state for password fields
+  const [touched, setTouched] = useState({
+    password: false,
+    confirmPassword: false
+  })
+  const [fieldErrors, setFieldErrors] = useState({})
+  // Validate password fields
+  const validateField = (name, value) => {
+    switch (name) {
+      case 'password':
+        if (!value) return 'Password is required'
+        if (value.length < 8) return 'Password must be at least 8 characters'
+        return ''
+      case 'confirmPassword':
+        if (!value) return 'Please confirm your password'
+        if (value !== formData.password) return 'Passwords do not match'
+        return ''
+      default:
+        return ''
+    }
+  }
+
+  // Handle blur for password fields
+  const handleBlur = (e) => {
+    const { name, value } = e.target
+    setTouched(prev => ({ ...prev, [name]: true }))
+    const error = validateField(name, value)
+    setFieldErrors(prev => ({ ...prev, [name]: error }))
+  }
+
+  // Handle focus for password fields
+  const handleFocus = (e) => {
+    const { name } = e.target
+    if (fieldErrors[name]) {
+      setFieldErrors(prev => ({ ...prev, [name]: '' }))
+    }
+  }
 import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
@@ -5,6 +42,84 @@ import { useAlert } from '../context/AlertContext'
 import apiService from '../api'
 
 function Register() {
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  // Password requirements state
+  const [requirements, setRequirements] = useState({
+    length: false,
+    uppercase: false,
+    lowercase: false,
+    number: false,
+    special: false,
+    match: false
+  })
+  const [passwordStrength, setPasswordStrength] = useState({
+    score: 0,
+    level: 'Weak',
+    color: '#ef4444'
+  })
+
+  // Password strength checker
+  const checkPasswordStrength = (password) => {
+    let score = 0
+    const newRequirements = { ...requirements }
+    // Length check
+    if (password.length >= 8) {
+      score += 1
+      newRequirements.length = true
+    } else {
+      newRequirements.length = false
+    }
+    // Uppercase check
+    if (/[A-Z]/.test(password)) {
+      score += 1
+      newRequirements.uppercase = true
+    } else {
+      newRequirements.uppercase = false
+    }
+    // Lowercase check
+    if (/[a-z]/.test(password)) {
+      score += 1
+      newRequirements.lowercase = true
+    } else {
+      newRequirements.lowercase = false
+    }
+    // Number check
+    if (/\d/.test(password)) {
+      score += 1
+      newRequirements.number = true
+    } else {
+      newRequirements.number = false
+    }
+    // Special character check
+    if (/[^A-Za-z0-9]/.test(password)) {
+      score += 1
+      newRequirements.special = true
+    } else {
+      newRequirements.special = false
+    }
+    // Password match check
+    if (formData.confirmPassword && password === formData.confirmPassword) {
+      newRequirements.match = true
+    } else if (formData.confirmPassword) {
+      newRequirements.match = false
+    }
+    setRequirements(newRequirements)
+    let level = 'Weak'
+    let color = '#ef4444'
+    if (score >= 5) {
+      level = 'Strong'
+      color = '#10b981'
+    } else if (score >= 4) {
+      level = 'Good'
+      color = '#f59e0b'
+    } else if (score >= 3) {
+      level = 'Fair'
+      color = '#f97316'
+    }
+    setPasswordStrength({ score, level, color })
+    return score >= 5
+  }
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -97,6 +212,13 @@ function Register() {
     if (error) {
       setError('')
     }
+      if (name === 'password' || name === 'confirmPassword') {
+        const updatedForm = {
+          ...formData,
+          [name]: value
+        }
+        checkPasswordStrength(updatedForm.password, updatedForm.confirmPassword)
+    }
   }
   
   // Toggle skills dropdown visibility
@@ -134,11 +256,11 @@ function Register() {
   const handleSubmit = async (e) => {
     e.preventDefault()
 
-    if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match!")
+    // Password requirements including match
+    if (!requirements.length || !requirements.uppercase || !requirements.lowercase || !requirements.number || !requirements.special || !requirements.match) {
+      setError("Password does not meet requirements.")
       return
     }
-    
     // Validate that at least one skill is selected if employee or both
     if ((formData.userType === 'employee' || formData.userType === 'both') && 
         (!formData.skills || formData.skills.length === 0)) {
@@ -281,38 +403,172 @@ function Register() {
           <div className="form-row">
             <div className="form-group">
               <label htmlFor="password">Password</label>
-              <input
-                type="password"
-                id="password"
-                name="password"
-                value={formData.password}
-                onChange={handleInputChange}
-                required
-                placeholder="Create a password"
-              />
-            </div>
-            <div className="form-group">
-              <label htmlFor="confirmPassword">Confirm Password</label>
-              <input
-                type="password"
-                id="confirmPassword"
-                name="confirmPassword"
-                value={formData.confirmPassword}
-                onChange={handleInputChange}
-                required
-                placeholder="Repeat the password"
-                style={{
-                  borderColor: passwordError === "Passwords match!" ? 'green' : 
-                             passwordError === "Passwords do not match!" ? 'red' : ''
-                }}
-              />
-              {passwordError && (
-                <div className={`password-feedback ${passwordError === "Passwords match!" ? 'success' : 'error'}`}>
-                  {passwordError}
+              <div className="input-wrapper" style={{ position: 'relative' }}>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  id="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleInputChange}
+                  onBlur={handleBlur}
+                  onFocus={handleFocus}
+                  required
+                  placeholder="Create a password"
+                  style={{ paddingRight: '2.5rem' }}
+                />
+                <div 
+                  className="password-toggle-icon" 
+                  onClick={() => setShowPassword(!showPassword)}
+                  title={showPassword ? "Hide password" : "Show password"}
+                  style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', zIndex: 2 }}
+                >
+                  {showPassword ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                      <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                      <line x1="1" y1="1" x2="23" y2="23"></line>
+                    </svg>
+                  )}
+                </div>
+              </div>
+              {fieldErrors.password && touched.password && (
+                <div className="field-error">{fieldErrors.password}</div>
+              )}
+              {formData.password && (
+                <div className="password-strength">
+                  <div className="strength-bar">
+                    <div 
+                      className="strength-fill"
+                      style={{ 
+                        width: `${(passwordStrength.score / 4) * 100}%`,
+                        backgroundColor: passwordStrength.color 
+                      }}
+                    ></div>
+                  </div>
+                  <span 
+                    className="strength-text"
+                    style={{ color: passwordStrength.color }}
+                  >
+                    {passwordStrength.level}
+                  </span>
                 </div>
               )}
             </div>
+            <div className="form-group">
+              <label htmlFor="confirmPassword">Confirm Password</label>
+              <div className="input-wrapper" style={{ position: 'relative' }}>
+                <input
+                  type={showConfirmPassword ? "text" : "password"}
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={handleInputChange}
+                  required
+                  placeholder="Repeat the password"
+                  style={{
+                    borderColor: passwordError === "Passwords match!" ? 'green' : 
+                               passwordError === "Passwords do not match!" ? 'red' : '',
+                    paddingRight: '2.5rem'
+                  }}
+                />
+                <div 
+                  className="password-toggle-icon" 
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  title={showConfirmPassword ? "Hide password" : "Show password"}
+                  style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', zIndex: 2 }}
+                >
+                  {showConfirmPassword ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                      <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                      <line x1="1" y1="1" x2="23" y2="23"></line>
+                    </svg>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
+          {(formData.password || formData.confirmPassword) && (
+            <div className="password-requirements">
+              <h4>Password Requirements:</h4>
+              <ul>
+                <li className={requirements.length ? 'met' : ''}>
+                  <span className="req-icon">{requirements.length ? '✓' : '✗'}</span>
+                  At least 8 characters
+                </li>
+                <li className={requirements.uppercase ? 'met' : ''}>
+                  <span className="req-icon">{requirements.uppercase ? '✓' : '✗'}</span>
+                  At least one uppercase letter
+                </li>
+                <li className={requirements.lowercase ? 'met' : ''}>
+                  <span className="req-icon">{requirements.lowercase ? '✓' : '✗'}</span>
+                  At least one lowercase letter
+                </li>
+                <li className={requirements.number ? 'met' : ''}>
+                  <span className="req-icon">{requirements.number ? '✓' : '✗'}</span>
+                  At least one number
+                </li>
+                <li className={requirements.special ? 'met' : ''}>
+                  <span className="req-icon">{requirements.special ? '✓' : '✗'}</span>
+                  At least one special character
+                </li>
+                <li className={formData.confirmPassword && formData.password === formData.confirmPassword ? 'met' : ''}>
+                  <span className="req-icon">{formData.confirmPassword && formData.password === formData.confirmPassword ? '✓' : '✗'}</span>
+                  Passwords match
+                </li>
+              </ul>
+              <style>{`
+                .password-requirements ul {
+                  margin: 0;
+                  padding: 0;
+                  list-style: none;
+                  display: grid;
+                  gap: 0.5rem;
+                }
+                .password-requirements li {
+                  position: relative;
+                  font-size: 0.95rem;
+                  color: #64748b;
+                  padding-left: 2rem;
+                  display: flex;
+                  align-items: center;
+                  transition: all 0.2s ease;
+                }
+                .password-requirements li .req-icon {
+                  position: absolute;
+                  left: 0;
+                  width: 24px;
+                  height: 24px;
+                  border-radius: 50%;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  font-size: 1.1rem;
+                  font-weight: bold;
+                  background: rgba(220, 38, 38, 0.1);
+                  color: #dc2626;
+                  transition: all 0.2s ease;
+                }
+                .password-requirements li.met {
+                  color: #059669;
+                  font-weight: 500;
+                }
+                .password-requirements li.met .req-icon {
+                  color: white;
+                  background: #059669;
+                  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.3);
+                }
+              `}</style>
+            </div>
+          )}
 
           <div className="form-group">
             <label htmlFor="mobileNo">Mobile Number</label>

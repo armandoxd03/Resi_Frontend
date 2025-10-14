@@ -28,6 +28,7 @@ function ResetPassword() {
     uppercase: false,
     lowercase: false,
     number: false,
+    special: false,
     match: false
   })
 
@@ -84,6 +85,14 @@ function ResetPassword() {
       newRequirements.number = false
     }
 
+    // Special character check
+    if (/[^A-Za-z0-9]/.test(password)) {
+      score += 1
+      newRequirements.special = true
+    } else {
+      newRequirements.special = false
+    }
+
     // Password match check
     if (formData.confirmPassword && password === formData.confirmPassword) {
       newRequirements.match = true
@@ -96,19 +105,19 @@ function ResetPassword() {
     let level = 'Weak'
     let color = '#ef4444'
 
-    if (score >= 4) {
+    if (score >= 5) {
       level = 'Strong'
       color = '#10b981'
-    } else if (score >= 3) {
+    } else if (score >= 4) {
       level = 'Good'
       color = '#f59e0b'
-    } else if (score >= 2) {
+    } else if (score >= 3) {
       level = 'Fair'
       color = '#f97316'
     }
 
     setPasswordStrength({ score, level, color })
-    return score >= 4
+    return score >= 5
   }
 
   const validateField = (name, value) => {
@@ -303,11 +312,7 @@ function ResetPassword() {
                     ❌
                   </span>
                 )}
-                {formData.token && !fieldErrors.token && touched.token && (
-                  <span className="success-icon" title="Valid token">
-                    ✅
-                  </span>
-                )}
+                {/* Removed success icon for valid token */}
               </div>
             </div>
             {fieldErrors.token && touched.token && (
@@ -338,11 +343,7 @@ function ResetPassword() {
                     ❌
                   </span>
                 )}
-                {formData.newPassword && !fieldErrors.newPassword && touched.newPassword && (
-                  <span className="success-icon" title="Valid password">
-                    ✅
-                  </span>
-                )}
+                {/* Removed success icon for valid password */}
               </div>
             </div>
             {fieldErrors.newPassword && touched.newPassword && (
@@ -393,11 +394,7 @@ function ResetPassword() {
                     ❌
                   </span>
                 )}
-                {formData.confirmPassword && !fieldErrors.confirmPassword && requirements.match && (
-                  <span className="success-icon" title="Passwords match">
-                    ✅
-                  </span>
-                )}
+                {/* Removed success icon for passwords match */}
               </div>
             </div>
             {fieldErrors.confirmPassword && touched.confirmPassword && (
@@ -422,6 +419,9 @@ function ResetPassword() {
                 </li>
                 <li className={requirements.number ? 'met' : ''}>
                   At least one number
+                </li>
+                <li className={requirements.special ? 'met' : ''}>
+                  At least one special character
                 </li>
                 <li className={requirements.match ? 'met' : ''}>
                   Passwords match

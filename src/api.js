@@ -109,9 +109,9 @@ class ApiService {
           localStorage.removeItem("token");
           localStorage.removeItem("user");
           window.dispatchEvent(new Event("storage"));
-          throw new Error("Session expired. Please login again.");
+          throw new Error(data?.alert || data?.message || "Session expired. Please login again.");
         } else if (response.status === 403) {
-          throw new Error("Forbidden: You don't have permission");
+          throw new Error(data?.alert || data?.message || "Forbidden: You don't have permission");
         } else if (response.status === 404) {
           throw new Error("Resource not found");
         } else if (response.status >= 500) {

@@ -147,6 +147,14 @@ function Login() {
           };
         }
 
+        // Check if account is verified
+        if (fullUser && fullUser.isVerified === false) {
+          setError('Please verify your email first')
+          showError('Please verify your email first')
+          setLoading(false)
+          return
+        }
+
         // Login user with full user data
         login(data.token, fullUser);
 
@@ -162,9 +170,18 @@ function Login() {
           }
         }, 1500)
       } else {
-        const errorMessage = data.alert || 'Invalid email or password'
-        setError(errorMessage)
-        showError(errorMessage)
+        // Show specific error for incorrect credentials
+        if (data.error === 'Invalid credentials' || data.alert === 'Invalid credentials') {
+          setError('Incorrect email or password. Please try again.')
+          showError('Incorrect email or password. Please try again.')
+        } else if (data.error === 'Account not verified' || data.alert === 'Account not verified' || data.alert === 'Please verify your email first') {
+          setError('Please verify your email first')
+          showError('Please verify your email first')
+        } else {
+          const errorMessage = data.alert || data.error || 'Invalid email or password'
+          setError(errorMessage)
+          showError(errorMessage)
+        }
       }
     } catch (err) {
       console.error('Login error:', err)
