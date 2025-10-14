@@ -18,6 +18,9 @@ const Notifications = () => {
 
   const [filter, setFilter] = useState('all'); // all, unread, read
   const [filteredNotifications, setFilteredNotifications] = useState([]);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [notificationToDelete, setNotificationToDelete] = useState(null);
+  const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
 
   useEffect(() => {
     fetchNotifications();
@@ -62,16 +65,30 @@ const Notifications = () => {
   };
 
   const handleMarkAllRead = () => {
-    if (window.confirm('Mark all notifications as read?')) {
-      markAllAsRead();
+    markAllAsRead();
+  };
+
+  const openDeleteModal = (notification) => {
+    setNotificationToDelete(notification);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (notificationToDelete) {
+      await deleteNotification(notificationToDelete._id);
+      setShowDeleteModal(false);
+      setNotificationToDelete(null);
     }
   };
 
   const handleDeleteAll = async () => {
-    if (window.confirm('Delete all notifications? This cannot be undone.')) {
-      const deletePromises = notifications.map(n => deleteNotification(n._id));
-      await Promise.all(deletePromises);
-    }
+    setShowDeleteAllModal(true);
+  };
+
+  const confirmDeleteAll = async () => {
+    const deletePromises = notifications.map(n => deleteNotification(n._id));
+    await Promise.all(deletePromises);
+    setShowDeleteAllModal(false);
   };
 
   if (loading && notifications.length === 0) {
@@ -184,9 +201,7 @@ const Notifications = () => {
                   className="delete-btn"
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (window.confirm('Delete this notification?')) {
-                      deleteNotification(notification._id);
-                    }
+                    openDeleteModal(notification);
                   }}
                   title="Delete notification"
                 >
@@ -467,6 +482,199 @@ const Notifications = () => {
 
           .notification-actions {
             opacity: 1;
+          }
+        }
+      `}</style>
+
+      {/* Delete Single Notification Modal */}
+      {showDeleteModal && (
+        <div className="modal-overlay" onClick={() => setShowDeleteModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Delete Notification</h3>
+              <button className="close-btn" onClick={() => setShowDeleteModal(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              <p>Are you sure you want to delete this notification?</p>
+              <p className="warning-text">This action cannot be undone.</p>
+            </div>
+            <div className="modal-actions">
+              <button className="btn-cancel" onClick={() => setShowDeleteModal(false)}>
+                Cancel
+              </button>
+              <button className="btn-delete" onClick={confirmDelete}>
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete All Notifications Modal */}
+      {showDeleteAllModal && (
+        <div className="modal-overlay" onClick={() => setShowDeleteAllModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Delete All Notifications</h3>
+              <button className="close-btn" onClick={() => setShowDeleteAllModal(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              <p>Are you sure you want to delete all {notifications.length} notifications?</p>
+              <p className="warning-text">⚠️ This action cannot be undone and will remove all your notifications permanently.</p>
+            </div>
+            <div className="modal-actions">
+              <button className="btn-cancel" onClick={() => setShowDeleteAllModal(false)}>
+                Cancel
+              </button>
+              <button className="btn-delete" onClick={confirmDeleteAll}>
+                Delete All
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style jsx="true">{`
+        .modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.6);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+          animation: fadeIn 0.2s ease;
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+
+        .modal-content {
+          background: white;
+          border-radius: 12px;
+          max-width: 450px;
+          width: 90%;
+          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+          animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .modal-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 1.5rem;
+          border-bottom: 1px solid #e2e8f0;
+        }
+
+        .modal-header h3 {
+          margin: 0;
+          color: #2D3748;
+          font-size: 1.25rem;
+        }
+
+        .close-btn {
+          background: none;
+          border: none;
+          font-size: 1.5rem;
+          color: #718096;
+          cursor: pointer;
+          width: 30px;
+          height: 30px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 50%;
+          transition: all 0.2s;
+        }
+
+        .close-btn:hover {
+          background: #f7fafc;
+          color: #2D3748;
+        }
+
+        .modal-body {
+          padding: 1.5rem;
+        }
+
+        .modal-body p {
+          margin: 0 0 1rem 0;
+          color: #4A5568;
+          line-height: 1.6;
+        }
+
+        .warning-text {
+          color: #E53E3E;
+          font-weight: 500;
+        }
+
+        .modal-actions {
+          display: flex;
+          gap: 0.75rem;
+          justify-content: flex-end;
+          padding: 1rem 1.5rem;
+          border-top: 1px solid #e2e8f0;
+        }
+
+        .btn-cancel,
+        .btn-delete {
+          padding: 0.75rem 1.5rem;
+          border: none;
+          border-radius: 8px;
+          font-size: 0.9rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .btn-cancel {
+          background: #f7fafc;
+          color: #4A5568;
+        }
+
+        .btn-cancel:hover {
+          background: #edf2f7;
+        }
+
+        .btn-delete {
+          background: #E53E3E;
+          color: white;
+        }
+
+        .btn-delete:hover {
+          background: #C53030;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(229, 62, 62, 0.3);
+        }
+
+        @media (max-width: 480px) {
+          .modal-content {
+            width: 95%;
+            max-width: none;
+          }
+
+          .modal-actions {
+            flex-direction: column-reverse;
+          }
+
+          .btn-cancel,
+          .btn-delete {
+            width: 100%;
           }
         }
       `}</style>

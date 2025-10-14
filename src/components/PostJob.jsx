@@ -30,6 +30,13 @@ function PostJob() {
       return
     }
 
+    // Check if user is employer, both, or admin
+    if (user && user.userType !== 'employer' && user.userType !== 'both' && user.userType !== 'admin') {
+      showError('Only employers can post jobs. Please update your profile to become an employer.')
+      navigate('/profile')
+      return
+    }
+
     // Load draft if exists
     const draft = localStorage.getItem('draftJob')
     if (draft) {
@@ -50,7 +57,7 @@ function PostJob() {
         console.error('Error loading draft:', e)
       }
     }
-  }, [isLoggedIn, navigate, showError])
+  }, [isLoggedIn, user, navigate, showError])
 
   const handleInputChange = (e) => {
     const { name, value } = e.target

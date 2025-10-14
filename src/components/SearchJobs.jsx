@@ -2,6 +2,7 @@ import { useState, useEffect, useContext } from 'react'
 import { Link } from 'react-router-dom'
 import { AuthContext } from '../context/AuthContext'
 import { AlertContext } from '../context/AlertContext'
+import ReportModal from './ReportModal'
 
 // Use environment variable for API base URL
 const API_BASE = import.meta.env.VITE_API_URL || 'https://resi-backend-1.onrender.com/api'
@@ -18,6 +19,7 @@ function SearchJobs() {
   const [loading, setLoading] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
   const [expandedJobs, setExpandedJobs] = useState({})
+  const [reportModal, setReportModal] = useState({ isOpen: false, jobId: null, jobTitle: '' })
   
   const { user, isLoggedIn } = useContext(AuthContext)
   const { success, error: showError } = useContext(AlertContext)
@@ -124,6 +126,35 @@ function SearchJobs() {
       }
       
       showError(errorMessage)
+    }
+  }
+
+  const openReportModal = (job, e) => {
+    e.stopPropagation() // Prevent job card expansion
+    setReportModal({
+      isOpen: true,
+      jobId: job._id,
+      jobTitle: job.title
+    })
+  }
+
+  const closeReportModal = () => {
+    setReportModal({ isOpen: false, jobId: null, jobTitle: '' })
+  }
+
+  const handleReportSubmit = async (reason) => {
+    try {
+      const apiService = await import('../api').then(module => module.default)
+      await apiService.reportJob({
+        reportedJobId: reportModal.jobId,
+        reason
+      })
+      success('Report submitted successfully')
+      closeReportModal()
+    } catch (error) {
+      console.error('Error submitting report:', error)
+      showError(error.message || 'Failed to submit report')
+      throw error
     }
   }
 
@@ -336,6 +367,15 @@ function SearchJobs() {
                             ? 'Already Applied'
                             : 'Apply Now'}
                       </button>
+                      {isLoggedIn && (
+                        <button 
+                          className="report-btn"
+                          onClick={(e) => openReportModal(job, e)}
+                          title="Report this job"
+                        >
+                          🚩 Report
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -344,6 +384,15 @@ function SearchJobs() {
           ))}
         </div>
       </div>
+
+      {/* Report Modal */}
+      <ReportModal
+        isOpen={reportModal.isOpen}
+        onClose={closeReportModal}
+        onSubmit={handleReportSubmit}
+        reportType="Job"
+        targetName={reportModal.jobTitle}
+      />
 
   <style>{`
         .search-jobs-container {
@@ -625,6 +674,32 @@ function SearchJobs() {
         .apply-btn:disabled {
           background: #a0aec0;
           cursor: not-allowed;
+        }
+
+        .report-btn {
+          background: #dc2626;
+          color: white;
+          border: none;
+          padding: 0.75rem 1.5rem;
+          border-radius: 8px;
+          font-size: 1rem;
+          cursor: pointer;
+          transition: all 0.2s;
+          position: relative;
+          z-index: 5;
+          margin-left: 0.5rem;
+        }
+
+        .report-btn:hover {
+          background: #b91c1c;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+        }
+
+        .job-actions {
+          display: flex;
+          gap: 0.5rem;
+          margin-top: 1rem;
         }
 
         .spinner {

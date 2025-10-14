@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { useAlert } from '../context/AlertContext'
 import apiService from '../api'
 import GoalManagement from './GoalManagement'
+import { getProfilePictureUrl } from '../utils/imageHelper'
 
 function Profile() {
   const [profile, setProfile] = useState(null)
@@ -532,22 +533,34 @@ function Profile() {
           justify-content: space-between;
           align-items: center;
           margin-bottom: 2rem;
+          padding-bottom: 1rem;
+          border-bottom: 2px solid #f1f5f9;
         }
         .modal-header h3 {
-          font-size: 1.35rem;
+          font-size: 1.5rem;
           font-weight: 700;
-          color: #22314a;
-          letter-spacing: 0.01em;
+          color: #1e293b;
+          letter-spacing: -0.02em;
+        }
         .close-btn {
-          background: none;
+          background: #f1f5f9;
           border: none;
-          font-size: 1.7rem;
+          width: 36px;
+          height: 36px;
+          border-radius: 50%;
+          font-size: 1.5rem;
           color: #64748b;
           cursor: pointer;
-          transition: color 0.2s;
+          transition: all 0.2s;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          line-height: 1;
         }
         .close-btn:hover {
-          color: #22314a;
+          background: #e2e8f0;
+          color: #1e293b;
+          transform: rotate(90deg);
         }
         .edit-form {
           display: flex;
@@ -805,7 +818,7 @@ function Profile() {
         <div className="profile-avatar-section">
           <div className="profile-avatar-lg">
             {profile?.profilePicture ? (
-              <img src={`data:image/jpeg;base64,${profile.profilePicture}`} alt="Profile" />
+              <img src={getProfilePictureUrl(profile)} alt="Profile" />
             ) : (
               <div className="avatar-placeholder-lg">
                 {profile?.firstName?.[0]}{profile?.lastName?.[0]}
@@ -942,7 +955,7 @@ function Profile() {
                     <div className="worker-avatar">
                       {worker.profilePicture ? (
                         <img 
-                          src={`data:image/jpeg;base64,${worker.profilePicture}`} 
+                          src={getProfilePictureUrl(worker)} 
                           alt={`${worker.firstName} ${worker.lastName}`} 
                         />
                       ) : (
@@ -1241,9 +1254,9 @@ function Profile() {
         {showJobModal && selectedJob && (
           <div className="modal-overlay" onClick={handleCloseJobModal}>
             <div className="modal-content job-modal-content" onClick={(e) => e.stopPropagation()}>
-              <button onClick={handleCloseJobModal} className="close">×</button>
               <div className="modal-header">
                 <h3>Job Details</h3>
+                <button onClick={handleCloseJobModal} className="close-btn">×</button>
               </div>
               
               <div className="job-modal-details">
@@ -1338,9 +1351,9 @@ function Profile() {
         {showWorkerModal && selectedWorker && (
           <div className="modal-overlay" onClick={handleCloseWorkerModal}>
             <div className="modal-content worker-modal-content" onClick={(e) => e.stopPropagation()}>
-              <button onClick={handleCloseWorkerModal} className="close">×</button>
               <div className="modal-header">
                 <h3>Worker Profile</h3>
+                <button onClick={handleCloseWorkerModal} className="close-btn">×</button>
               </div>
               
               <div className="worker-modal-details">
@@ -1348,7 +1361,7 @@ function Profile() {
                   <div className="worker-modal-avatar">
                     {selectedWorker.profilePicture ? (
                       <img 
-                        src={`data:image/jpeg;base64,${selectedWorker.profilePicture}`} 
+                        src={getProfilePictureUrl(selectedWorker)} 
                         alt={`${selectedWorker.firstName} ${selectedWorker.lastName}`} 
                       />
                     ) : (
@@ -1801,28 +1814,7 @@ function Profile() {
   margin-bottom: 0.3rem;
   letter-spacing: 0.03em;
 }
-.modal-content .close {
-  background: #e0e0e0;
-  color: #22292f;
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.5rem;
-  border: none;
-  position: absolute;
-  top: 1.5rem;
-  right: 1.5rem;
-  left: auto;
-  box-shadow: 0 2px 8px rgba(34,41,47,0.10);
-  cursor: pointer;
-  z-index: 2100;
-}
-.modal-content .close:hover {
-  background: #bdbdbd;
-}
+
         .profile-page {
           background: #f5f6fa;
           min-height: 100vh;
@@ -1873,23 +1865,26 @@ function Profile() {
         }
         .avatar-upload-lg {
           position: absolute;
-          bottom: -18px;
-          left: 50%;
-          transform: translateX(-50%);
+          bottom: 8px;
+          right: 8px;
+          transform: none;
         }
         .upload-btn-lg {
-          background: #fff;
-          color: #22314a;
-          border: 1px solid #e2e8f0;
-          border-radius: 16px;
-          font-size: 0.95rem;
-          padding: 6px 16px;
+          background: rgba(124, 58, 237, 0.95);
+          color: #fff;
+          border: 2px solid #fff;
+          border-radius: 50%;
+          font-size: 0.75rem;
+          padding: 8px 12px;
           cursor: pointer;
-          box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+          box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3);
           transition: all 0.2s;
+          font-weight: 600;
+          white-space: nowrap;
         }
         .upload-btn-lg:hover {
-          background: #f1f5f9;
+          background: rgba(109, 40, 217, 0.95);
+          transform: scale(1.05);
         }
         .profile-name-section {
           text-align: center;

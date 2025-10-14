@@ -156,7 +156,7 @@ const NotificationDropdown = ({ isMobile = false }) => {
           border: none;
           position: relative;
           cursor: pointer;
-          padding: 5px;
+          padding: 8px 12px;
           font-size: 1.5rem;
           color: #4A5568;
           display: flex;
@@ -171,10 +171,10 @@ const NotificationDropdown = ({ isMobile = false }) => {
         
         .notification-badge {
           position: absolute;
-          top: -2px;
-          right: -2px;
-          min-width: 18px;
-          height: 18px;
+          top: 2px;
+          right: 4px;
+          min-width: 20px;
+          height: 20px;
           border-radius: 50%;
           background-color: #E53E3E;
           color: white;
@@ -183,8 +183,9 @@ const NotificationDropdown = ({ isMobile = false }) => {
           display: flex;
           align-items: center;
           justify-content: center;
-          padding: 0 4px;
+          padding: 0 5px;
           border: 2px solid white;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         }
         
         .dropdown-menu {

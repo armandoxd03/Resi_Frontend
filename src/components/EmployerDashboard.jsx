@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { AuthContext } from '../context/AuthContext'
 import { AlertContext } from '../context/AlertContext'
 import apiService from '../api'
+import ReportModal from './ReportModal'
 
 function EmployerDashboard() {
   // Helper function for price formatting
@@ -197,6 +198,7 @@ function EmployerDashboard() {
   const [loadingRatings, setLoadingRatings] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
   const [contactMessage, setContactMessage] = useState('');
+  const [reportModal, setReportModal] = useState({ isOpen: false, userId: null, userName: '' });
   
   // View worker profile function
   const viewWorkerProfile = async (worker) => {
@@ -243,6 +245,34 @@ function EmployerDashboard() {
     success(`Message sent to ${currentWorker.firstName} ${currentWorker.lastName}!`);
     setShowContactModal(false);
     setContactMessage('');
+  }
+  
+  // Report user functions
+  const openReportModal = (worker) => {
+    setReportModal({
+      isOpen: true,
+      userId: worker._id,
+      userName: `${worker.firstName} ${worker.lastName}`
+    });
+  }
+
+  const closeReportModal = () => {
+    setReportModal({ isOpen: false, userId: null, userName: '' });
+  }
+
+  const handleReportSubmit = async (reason) => {
+    try {
+      await apiService.reportUser({
+        reportedUserId: reportModal.userId,
+        reason
+      });
+      success('Report submitted successfully');
+      closeReportModal();
+    } catch (error) {
+      console.error('Error submitting report:', error);
+      showError(error.message || 'Failed to submit report');
+      throw error;
+    }
   }
   
   // Function to open invite modal with the selected worker
@@ -362,9 +392,13 @@ function EmployerDashboard() {
       
       console.log('Delete job response:', result);
       
-      success(result.alert || 'Job deleted successfully and moved to trash');
-      // Refresh the jobs list and dashboard stats
-      await loadMyJobs();
+      // Remove job from local state immediately
+      setJobs(prevJobs => prevJobs.filter(job => job._id !== jobToDelete._id));
+      setMyJobs(prevJobs => prevJobs.filter(job => job._id !== jobToDelete._id));
+      
+      success(result.alert || 'Job deleted successfully');
+      
+      // Refresh the dashboard stats
       await loadDashboardStats();
       
       // Close the modal
@@ -372,7 +406,7 @@ function EmployerDashboard() {
       setJobToDelete(null);
     } catch (error) {
       console.error('Error deleting job:', error);
-      showError(`Error deleting job: ${error.message}`);
+      showError(error.message || 'Failed to delete job');
     } finally {
       setLoading(false);
     }
@@ -769,6 +803,13 @@ function EmployerDashboard() {
                           aria-label={`Invite ${worker.firstName} to job`}
                         >
                           Invite to Job
+                        </button>
+                        <button 
+                          className="btn danger" 
+                          onClick={() => openReportModal(worker)}
+                          aria-label={`Report ${worker.firstName}`}
+                        >
+                          🚩 Report
                         </button>
                       </div>
                     </div>
@@ -1442,6 +1483,17 @@ function EmployerDashboard() {
         
         .btn.accent:hover {
           background: #7c3aed;
+        }
+
+        .btn.danger {
+          background: #dc2626;
+          color: white;
+        }
+        
+        .btn.danger:hover {
+          background: #b91c1c;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
         }
 
         .application-section {
@@ -2577,51 +2629,16 @@ function EmployerDashboard() {
                   </div>
                   <div className="contact-details">
                     <h3>{currentWorker.firstName} {currentWorker.lastName}</h3>
-                    {currentWorker.mobileNo && (
-                      <p className="contact-number">
-                        <span className="contact-icon">📱</span>
-                        {currentWorker.mobileNo}
+                    {currentWorker.skills && currentWorker.skills.length > 0 && (
+                      <p className="worker-skills">
+                        <span className="contact-icon">⚒️</span>
+                        {currentWorker.skills.slice(0, 3).join(', ')}
+                        {currentWorker.skills.length > 3 && '...'}
                       </p>
                     )}
-                    <p className="contact-email">
-                      <span className="contact-icon">📧</span>
-                      {currentWorker.email}
-                    </p>
                   </div>
                 </div>
                 
-                <div className="contact-methods">
-                  <div className="contact-method-header">
-                    <h4>Contact Methods</h4>
-                    <p>Choose how you'd like to reach out</p>
-                  </div>
-                  
-                  <div className="contact-method-options">
-                    {currentWorker.mobileNo && (
-                      <a href={`tel:${currentWorker.mobileNo}`} className="contact-option call">
-                        <div className="option-icon">📞</div>
-                        <div className="option-label">Call</div>
-                      </a>
-                    )}
-                    
-                    {currentWorker.mobileNo && (
-                      <a href={`sms:${currentWorker.mobileNo}`} className="contact-option sms">
-                        <div className="option-icon">💬</div>
-                        <div className="option-label">SMS</div>
-                      </a>
-                    )}
-                    
-                    <a href={`mailto:${currentWorker.email}`} className="contact-option email">
-                      <div className="option-icon">📧</div>
-                      <div className="option-label">Email</div>
-                    </a>
-                    
-                    <div className="contact-option message" onClick={() => document.getElementById('message-input').focus()}>
-                      <div className="option-icon">✉️</div>
-                      <div className="option-label">Message</div>
-                    </div>
-                  </div>
-                </div>
               </div>
               
               <div className="message-section">
@@ -2826,7 +2843,7 @@ function EmployerDashboard() {
                 <div className="warning-icon">⚠️</div>
                 <h4>Are you sure you want to delete this job?</h4>
                 <p>
-                  <strong>"{jobToDelete.title}"</strong> will be moved to trash. 
+                  <strong>"{jobToDelete.title}"</strong> will be deleted. 
                   This action is reversible - you can contact an administrator to restore the job if needed.
                 </p>
                 
@@ -2854,7 +2871,7 @@ function EmployerDashboard() {
                 <div className="delete-note">
                   <span className="note-icon">📝</span>
                   <span className="note-text">
-                    Soft deleted jobs are not visible to users but can be restored by an administrator.
+                    Deleted jobs are not visible to users but can be restored by an administrator.
                   </span>
                 </div>
               </div>
@@ -2882,6 +2899,15 @@ function EmployerDashboard() {
           </div>
         </div>
       )}
+
+      {/* Report User Modal */}
+      <ReportModal
+        isOpen={reportModal.isOpen}
+        onClose={closeReportModal}
+        onSubmit={handleReportSubmit}
+        reportType="User"
+        targetName={reportModal.userName}
+      />
     </div>
   )
 }

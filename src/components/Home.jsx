@@ -7,7 +7,7 @@ function Home() {
   const [popularJobs, setPopularJobs] = useState([])
   const [topRatedUsers, setTopRatedUsers] = useState([])
   const [loading, setLoading] = useState(true)
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, user } = useAuth()
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -36,10 +36,13 @@ function Home() {
   }
 
   const handlePostJob = () => {
-    if (isAuthenticated) {
+    if (!isAuthenticated) {
+      navigate('/login')
+    } else if (user?.userType === 'employer' || user?.userType === 'both' || user?.userType === 'admin') {
       navigate('/post-job')
     } else {
-      navigate('/login')
+      alert('Only employers can post jobs. Please update your profile to become an employer.')
+      navigate('/profile')
     }
   }
 
@@ -320,7 +323,6 @@ function Home() {
         }
         
         .how-steps div:hover {
-          transform: translateY(-6px);
           box-shadow: var(--shadow-2xl);
         }
         

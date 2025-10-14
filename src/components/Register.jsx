@@ -336,16 +336,18 @@ function Register() {
       const data = await apiService.register(submitFormData);
 
       if (data && data.success) {
-        success('Registration successful! Please check your email for verification.')
+        success(data.alert || 'Registration successful! Please check your email for verification.')
         setVerificationSent(true)
       } else {
-        const errorMessage = data.message || data.alert || "Registration failed. Please try again."
+        // Handle the case where success is false but data is returned
+        const errorMessage = data.alert || data.message || "Registration failed. Please try again."
         setError(errorMessage)
         showError(errorMessage)
       }
     } catch (err) {
       console.error("Registration error:", err)
-      const errorMessage = "Connection error. Please try again."
+      // Extract the error message from the error object
+      const errorMessage = err.message || err.alert || "Connection error. Please try again."
       setError(errorMessage)
       showError(errorMessage)
     } finally {

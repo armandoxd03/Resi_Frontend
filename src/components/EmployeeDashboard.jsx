@@ -20,6 +20,8 @@ function EmployeeDashboard() {
     matches: false
   });
   const [activeTab, setActiveTab] = useState('active'); // 'active' or 'history'
+  const [showJobModal, setShowJobModal] = useState(false);
+  const [selectedJob, setSelectedJob] = useState(null);
   const { user, isAuthenticated, loading: authLoading } = useContext(AuthContext);
   const { error: showError } = useContext(AlertContext);
   const navigate = useNavigate();
@@ -130,6 +132,16 @@ function EmployeeDashboard() {
     loadEmployeeData();
   }, [authLoading, isAuthenticated, user, navigate, showError]);
 
+  const openJobDetailsModal = (job) => {
+    setSelectedJob(job);
+    setShowJobModal(true);
+  };
+
+  const closeJobDetailsModal = () => {
+    setShowJobModal(false);
+    setSelectedJob(null);
+  };
+
   const handleApplyToJob = async (jobId) => {
     try {
       await apiService.applyToJob(jobId);
@@ -143,6 +155,11 @@ function EmployeeDashboard() {
       } else {
         // Backward compatibility
         setMyApplications(Array.isArray(appResponse) ? appResponse : []);
+      }
+      
+      // Close modal if open
+      if (showJobModal) {
+        closeJobDetailsModal();
       }
     } catch (error) {
       showError(error.message || 'Failed to apply for job');
@@ -503,7 +520,12 @@ function EmployeeDashboard() {
                         <span className="applied-badge">Already Applied</span>
                       )
                     )}
-                    <Link to={`/jobs/${job._id}`} className="btn secondary">View Details</Link>
+                    <button 
+                      onClick={() => openJobDetailsModal(job)} 
+                      className="btn secondary"
+                    >
+                      View Details
+                    </button>
                   </div>
                 </div>
               ))
@@ -517,6 +539,99 @@ function EmployeeDashboard() {
           </div>
         </section>
       </div>
+
+      {/* Job Details Modal */}
+      {showJobModal && selectedJob && (
+        <div className="modal-overlay" onClick={closeJobDetailsModal}>
+          <div className="modal-content job-details-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>{selectedJob.title}</h2>
+              <button className="modal-close" onClick={closeJobDetailsModal}>×</button>
+            </div>
+            
+            <div className="modal-body">
+              <div className="job-detail-price">
+                <span className="price-label">Price:</span>
+                <span className="price-value">₱{selectedJob.price?.toLocaleString()}</span>
+              </div>
+
+              {selectedJob.matchScore && (
+                <div className="job-detail-match">
+                  <span className="match-label">Your Match Score:</span>
+                  <span className="match-percentage-large">
+                    {Math.min(100, Math.round(selectedJob.matchScore / 10 * 20))}%
+                  </span>
+                </div>
+              )}
+
+              <div className="job-detail-section">
+                <h3>Description</h3>
+                <p>{selectedJob.description || 'No description provided'}</p>
+              </div>
+
+              <div className="job-detail-section">
+                <h3>Location</h3>
+                <p>📍 {selectedJob.barangay}</p>
+                {selectedJob.barangay === user?.barangay && (
+                  <span className="location-match-badge">This job is in your area!</span>
+                )}
+              </div>
+
+              <div className="job-detail-section">
+                <h3>Posted By</h3>
+                <p>👤 {selectedJob.postedBy?.firstName} {selectedJob.postedBy?.lastName}</p>
+                <p className="date-posted">📅 Posted on {new Date(selectedJob.datePosted).toLocaleDateString()}</p>
+              </div>
+
+              {selectedJob.matchingSkills && selectedJob.matchingSkills.length > 0 && (
+                <div className="job-detail-section">
+                  <h3>✓ Your Matching Skills ({selectedJob.matchingSkills.length})</h3>
+                  <div className="skills-list">
+                    {selectedJob.matchingSkills.map((skill, index) => (
+                      <span key={index} className="skill-tag matching">{skill}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {selectedJob.skillsRequired && selectedJob.skillsRequired.length > 0 && (
+                <div className="job-detail-section">
+                  <h3>All Required Skills ({selectedJob.skillsRequired.length})</h3>
+                  <div className="skills-list">
+                    {selectedJob.skillsRequired.map((skill, index) => {
+                      const isMatching = selectedJob.matchingSkills && selectedJob.matchingSkills.includes(skill);
+                      return (
+                        <span 
+                          key={index} 
+                          className={`skill-tag ${isMatching ? 'matching' : 'non-matching'}`}
+                        >
+                          {skill}{isMatching && ' ✓'}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="modal-footer">
+              {selectedJob.isOpen && !myApplications.some(app => app._id === selectedJob._id) ? (
+                <button 
+                  onClick={() => handleApplyToJob(selectedJob._id)}
+                  className="btn primary btn-large"
+                >
+                  Apply Now
+                </button>
+              ) : (
+                myApplications.some(app => app._id === selectedJob._id) && (
+                  <span className="applied-badge-large">Already Applied</span>
+                )
+              )}
+              <button onClick={closeJobDetailsModal} className="btn secondary">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         .dashboard-container {
@@ -694,6 +809,9 @@ function EmployeeDashboard() {
           border-radius: 8px;
           padding: 1.5rem;
           transition: transform 0.2s, box-shadow 0.2s;
+          display: flex;
+          flex-direction: column;
+          gap: 0.75rem;
         }
 
         .job-card:hover {
@@ -738,14 +856,15 @@ function EmployeeDashboard() {
         }
 
         .skills-container, .matching-skills-container {
-          margin-top: 0.8rem;
+          margin: 0.75rem 0;
         }
         
         .skills-label, .matching-skills-label {
           font-weight: 600;
-          font-size: 0.9rem;
-          margin-bottom: 0.4rem;
+          font-size: 0.85rem;
+          margin-bottom: 0.5rem;
           color: #2d3748;
+          display: block;
         }
         
         .matching-skills-label {
@@ -755,23 +874,24 @@ function EmployeeDashboard() {
         .skills-list, .matching-skills-list {
           display: flex;
           flex-wrap: wrap;
-          gap: 0.5rem;
-          margin-top: 0.3rem;
+          gap: 0.4rem;
         }
 
         .skill-tag {
           background: #e2e8f0;
           color: #2d3748;
-          padding: 0.25rem 0.5rem;
+          padding: 0.3rem 0.6rem;
           border-radius: 12px;
-          font-size: 0.8rem;
+          font-size: 0.75rem;
+          font-weight: 500;
+          white-space: nowrap;
         }
         
         .skill-tag.matching {
           background: #c6f6d5;
           color: #2f855a;
           border: 1px solid #9ae6b4;
-          font-weight: 500;
+          font-weight: 600;
         }
         
         .skill-tag.non-matching {
@@ -819,21 +939,201 @@ function EmployeeDashboard() {
         }
         
         .job-description {
-          margin-top: 0.8rem;
+          margin: 0.75rem 0;
           color: #4a5568;
-          font-size: 0.9rem;
-          line-height: 1.4;
+          font-size: 0.875rem;
+          line-height: 1.5;
+        }
+
+        .job-description p {
+          margin: 0;
         }
         
         .applied-badge {
           display: inline-block;
           background: #fed7aa;
           color: #c05621;
-          padding: 0.5rem 1rem;
-          border-radius: 8px;
-          font-size: 0.9rem;
+          padding: 0.6rem 1.25rem;
+          border-radius: 6px;
+          font-size: 0.875rem;
           font-weight: 500;
           border: 1px solid #ed8936;
+          text-align: center;
+        }
+
+        .applied-badge-large {
+          display: inline-block;
+          background: #fed7aa;
+          color: #c05621;
+          padding: 0.75rem 1.5rem;
+          border-radius: 8px;
+          font-size: 1rem;
+          font-weight: 600;
+          border: 2px solid #ed8936;
+        }
+
+        /* Job Details Modal */
+        .modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.6);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+          animation: fadeIn 0.2s ease-out;
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+
+        .modal-content {
+          background: white;
+          border-radius: 12px;
+          width: 90%;
+          max-width: 700px;
+          max-height: 90vh;
+          overflow-y: auto;
+          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+          animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp {
+          from {
+            transform: translateY(50px);
+            opacity: 0;
+          }
+          to {
+            transform: translateY(0);
+            opacity: 1;
+          }
+        }
+
+        .modal-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 1.5rem;
+          border-bottom: 2px solid #e2e8f0;
+        }
+
+        .modal-header h2 {
+          margin: 0;
+          color: #2b6cb0;
+          font-size: 1.5rem;
+        }
+
+        .modal-close {
+          background: none;
+          border: none;
+          font-size: 2rem;
+          color: #666;
+          cursor: pointer;
+          width: 40px;
+          height: 40px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 6px;
+          transition: all 0.2s;
+        }
+
+        .modal-close:hover {
+          background: #f3f4f6;
+          color: #111;
+        }
+
+        .modal-body {
+          padding: 1.5rem;
+        }
+
+        .job-detail-price {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 1rem;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          border-radius: 8px;
+          margin-bottom: 1.5rem;
+        }
+
+        .price-label {
+          color: rgba(255, 255, 255, 0.9);
+          font-size: 1rem;
+        }
+
+        .price-value {
+          color: white;
+          font-size: 1.75rem;
+          font-weight: 700;
+        }
+
+        .job-detail-match {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 1rem;
+          background: #e6fffa;
+          border-radius: 8px;
+          margin-bottom: 1.5rem;
+        }
+
+        .match-percentage-large {
+          font-size: 2rem;
+          font-weight: 700;
+          color: #00695c;
+        }
+
+        .job-detail-section {
+          margin-bottom: 1.5rem;
+        }
+
+        .job-detail-section h3 {
+          color: #2d3748;
+          font-size: 1.1rem;
+          margin-bottom: 0.75rem;
+          border-left: 4px solid #2b6cb0;
+          padding-left: 0.75rem;
+        }
+
+        .job-detail-section p {
+          color: #4a5568;
+          line-height: 1.6;
+          margin: 0.5rem 0;
+        }
+
+        .date-posted {
+          color: #718096;
+          font-size: 0.9rem;
+        }
+
+        .location-match-badge {
+          display: inline-block;
+          background: #bee3f8;
+          color: #2c5282;
+          padding: 0.25rem 0.75rem;
+          border-radius: 12px;
+          font-size: 0.875rem;
+          font-weight: 500;
+          margin-top: 0.5rem;
+        }
+
+        .modal-footer {
+          display: flex;
+          gap: 1rem;
+          justify-content: flex-end;
+          padding: 1.5rem;
+          border-top: 2px solid #e2e8f0;
+        }
+
+        .btn-large {
+          padding: 0.875rem 2rem;
+          font-size: 1.1rem;
         }
 
         .status {
@@ -861,19 +1161,24 @@ function EmployeeDashboard() {
         .job-actions {
           margin-top: 1rem;
           display: flex;
-          gap: 0.5rem;
+          gap: 0.75rem;
+          flex-wrap: wrap;
+          align-items: center;
         }
 
         .btn {
-          padding: 0.5rem 1rem;
+          padding: 0.6rem 1.25rem;
           border: none;
           border-radius: 6px;
-          font-size: 0.9rem;
+          font-size: 0.875rem;
           cursor: pointer;
-          transition: background-color 0.2s;
+          transition: all 0.2s;
           text-decoration: none;
           display: inline-block;
           text-align: center;
+          font-weight: 500;
+          flex: 0 1 auto;
+          white-space: nowrap;
         }
 
         .btn.primary {
@@ -883,6 +1188,18 @@ function EmployeeDashboard() {
 
         .btn.primary:hover {
           background: #2c5282;
+          transform: translateY(-1px);
+          box-shadow: 0 2px 8px rgba(43, 108, 176, 0.3);
+        }
+
+        .btn.secondary {
+          background: #e2e8f0;
+          color: #2d3748;
+        }
+
+        .btn.secondary:hover {
+          background: #cbd5e0;
+          transform: translateY(-1px);
         }
 
         .btn.danger {
@@ -892,6 +1209,8 @@ function EmployeeDashboard() {
 
         .btn.danger:hover {
           background: #c53030;
+          transform: translateY(-1px);
+          box-shadow: 0 2px 8px rgba(229, 62, 62, 0.3);
         }
 
         .loading-state {
@@ -941,6 +1260,30 @@ function EmployeeDashboard() {
           .applications-grid,
           .jobs-grid {
             grid-template-columns: 1fr;
+          }
+
+          .job-card {
+            padding: 1.25rem;
+          }
+
+          .job-actions {
+            flex-direction: column;
+            gap: 0.5rem;
+          }
+
+          .btn {
+            width: 100%;
+            text-align: center;
+          }
+
+          .skill-tag {
+            font-size: 0.7rem;
+            padding: 0.25rem 0.5rem;
+          }
+
+          .applied-badge {
+            width: 100%;
+            text-align: center;
           }
         }
       `}</style>

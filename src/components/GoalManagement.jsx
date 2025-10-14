@@ -204,20 +204,29 @@ function GoalManagement() {
   const handleSetActiveGoal = async (goalId, isPriority = false) => {
     try {
       if (isPriority) {
-        // If it's a priority goal, just update it with isPriority flag
-        await apiService.updateGoal(goalId, { isPriority: true })
-        success('Goal set as priority and will be activated automatically when current goal is completed!')
+        // If setting as priority (next goal), update it with isPriority flag
+        const response = await apiService.updateGoal(goalId, { isPriority: true })
+        // Show custom success message for priority
+        success('Goal set as "Next Up" and will be activated automatically when your current goal is completed!')
+        // Reload goals to show the changes
+        loadGoals()
       } else {
-        // If not a priority goal, set it as active directly
-        await apiService.setActiveGoal(goalId)
-        success('Goal set as active!')
+        // If setting as active, activate it directly
+        const response = await apiService.setActiveGoal(goalId, false)
+        // Show custom success message from backend or default
+        if (response?.alert) {
+          success(response.alert)
+        } else {
+          success('Goal set as active!')
+        }
+        // Reload goals to show the changes
+        loadGoals()
       }
-      
-      // Reload goals to show the changes
-      loadGoals()
     } catch (err) {
-      console.error('Error setting active goal:', err)
-      showError('Failed to set goal as active. Please try again.')
+      console.error('Error setting goal:', err)
+      // Extract error message from response
+      const errorMessage = err?.alert || err?.message || 'Failed to update goal. Please try again.'
+      showError(errorMessage)
     }
   }
   

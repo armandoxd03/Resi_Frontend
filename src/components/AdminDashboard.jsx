@@ -395,6 +395,8 @@ function AdminDashboard() {
   })
   const [users, setUsers] = useState([])
   const [jobs, setJobs] = useState([])
+  const [reports, setReports] = useState([])
+  const [reportStatusFilter, setReportStatusFilter] = useState('all')
   const [deletedUsers, setDeletedUsers] = useState([])
   const [deletedJobs, setDeletedJobs] = useState([])
   const [deletedGoals, setDeletedGoals] = useState([])
@@ -407,6 +409,16 @@ function AdminDashboard() {
   const [userModal, setUserModal] = useState({ show: false, user: null, type: 'view' })
   const [jobModal, setJobModal] = useState({ show: false, job: null, type: 'view' })
   const [analyticsData, setAnalyticsData] = useState(null)
+  
+  // Delete/Restore confirmation modals
+  const [showDeleteUserModal, setShowDeleteUserModal] = useState(false)
+  const [showDeleteJobModal, setShowDeleteJobModal] = useState(false)
+  const [showRestoreModal, setShowRestoreModal] = useState(false)
+  const [showPermanentDeleteModal, setShowPermanentDeleteModal] = useState(false)
+  const [userToDelete, setUserToDelete] = useState(null)
+  const [jobToDelete, setJobToDelete] = useState(null)
+  const [itemToRestore, setItemToRestore] = useState({ id: null, type: null })
+  const [itemToDeletePermanently, setItemToDeletePermanently] = useState({ id: null, type: null })
 
   const { user, hasAccessTo } = useContext(AuthContext)
   const { success, error: showError } = useContext(AlertContext)
@@ -489,6 +501,9 @@ function AdminDashboard() {
           break
         case 'analytics':
           await loadAnalytics()
+          break
+        case 'reports':
+          await loadReports()
           break
         case 'deleted':
           await loadDeletedItems(deletedItemType)
@@ -631,6 +646,37 @@ function AdminDashboard() {
     }
   }
 
+  const loadReports = async () => {
+    try {
+      const apiService = await import('../api').then(module => module.default);
+      const response = await apiService.getReports();
+      const allReports = response.reports || [];
+      
+      // Filter reports based on status
+      let filtered = allReports;
+      if (reportStatusFilter !== 'all') {
+        filtered = allReports.filter(report => report.status === reportStatusFilter);
+      }
+      
+      setReports(filtered);
+    } catch (error) {
+      console.error('Error loading reports:', error);
+      showError('Failed to load reports');
+    }
+  }
+
+  const handleReportStatusUpdate = async (reportId, newStatus) => {
+    try {
+      const apiService = await import('../api').then(module => module.default);
+      await apiService.updateReportStatus(reportId, newStatus);
+      showSuccess(`Report ${newStatus} successfully`);
+      await loadReports();
+    } catch (error) {
+      console.error('Error updating report status:', error);
+      showError('Failed to update report status');
+    }
+  }
+
   const handleTabChange = async (tabId) => {
     setCurrentTab(tabId)
     await loadTabContent(tabId)
@@ -743,140 +789,143 @@ function AdminDashboard() {
     }
   }
 
-  const deleteUser = async (userId) => {
-    if (window.confirm('Are you sure you want to delete this user? The user will be moved to trash and can be restored later.')) {
-      try {
-        const token = localStorage.getItem('token')
-        const apiBaseUrl = import.meta.env.VITE_API_URL || 'https://resi-backend-1.onrender.com/api'
+  const openDeleteUserModal = (userId) => {
+    setUserToDelete(userId)
+    setShowDeleteUserModal(true)
+  }
+
+  const deleteUser = async () => {
+    if (!userToDelete) return
+    
+    try {
+      setTabLoading(true)
+      const token = localStorage.getItem('token')
+      const apiBaseUrl = import.meta.env.VITE_API_URL || 'https://resi-backend-1.onrender.com/api'
+      
+      const response = await fetch(`${apiBaseUrl}/admin/users/${userToDelete}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      
+      if (response.ok) {
+        success('User deleted successfully')
         
-        const response = await fetch(`${apiBaseUrl}/admin/users/${userId}`, {
-          method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
+        // Update the users list immediately by removing the deleted user
+        setUsers(prevUsers => prevUsers.filter(user => user._id !== userToDelete))
         
-        if (response.ok) {
-          success('User deleted successfully')
-          
-          // Update the users list immediately by removing the deleted user
-          setUsers(prevUsers => prevUsers.filter(user => user._id !== userId))
-          
-          // Then refresh from server
-          await loadUsers(pagination.page, 10)
-          await loadDashboardStats()
-        } else {
-          // Handle error response
-          try {
-            const contentType = response.headers.get("content-type");
-            if (contentType && contentType.includes("application/json")) {
-              const errorData = await response.json();
-              showError(`Failed to delete user: ${errorData.message || 'Unknown error'}`);
-            } else {
-              showError(`Failed to delete user (HTTP ${response.status})`);
-            }
-          } catch (parseError) {
-            showError('Failed to delete user');
+        // Then refresh from server
+        await loadUsers(pagination.page, 10)
+        await loadDashboardStats()
+      } else {
+        // Handle error response
+        try {
+          const contentType = response.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            const errorData = await response.json();
+            showError(`Failed to delete user: ${errorData.message || 'Unknown error'}`);
+          } else {
+            showError(`Failed to delete user (HTTP ${response.status})`);
           }
+        } catch (parseError) {
+          showError('Failed to delete user');
         }
-      } catch (error) {
-        console.error('Error deleting user:', error)
-        showError('Error deleting user: Network error')
       }
+    } catch (error) {
+      console.error('Error deleting user:', error)
+      showError('Error deleting user: Network error')
+    } finally {
+      setTabLoading(false)
+      setShowDeleteUserModal(false)
+      setUserToDelete(null)
     }
   }
   
   // Functions for managing deleted items
-  const restoreItem = async (itemId, type) => {
-    const typeName = type.slice(0, -1);
-    const message = `
-Restore ${typeName}?
+  const openRestoreModal = (itemId, type) => {
+    setItemToRestore({ id: itemId, type })
+    setShowRestoreModal(true)
+  }
 
-This action will:
-- Make this ${typeName} visible again in the system
-- Notify the owner that their ${typeName} has been restored
-- Allow normal interactions with this ${typeName}
-
-Proceed with restoration?
-    `;
+  const restoreItem = async () => {
+    const { id: itemId, type } = itemToRestore
+    if (!itemId || !type) return
     
-    if (window.confirm(message)) {
-      try {
-        setTabLoading(true);
-        const apiService = await import('../api').then(module => module.default)
-        
-        switch (type) {
-          case 'users':
-            await apiService.restoreUser(itemId)
-            success('User restored successfully and is now active again')
-            break
-          case 'jobs':
-            await apiService.restoreJob(itemId)
-            success('Job restored successfully and is now visible again')
-            break
-          case 'goals':
-            await apiService.restoreGoal(itemId)
-            success('Goal restored successfully and is now available again')
-            break
-          default:
-            break
-        }
-        
-        // Refresh the deleted items list
-        await loadDeletedItems(type)
-      } catch (error) {
-        console.error(`Error restoring ${typeName}:`, error)
-        showError(`Failed to restore ${typeName}: ${error.message}`)
-      } finally {
-        setTabLoading(false);
+    const typeName = type.slice(0, -1);
+    
+    try {
+      setTabLoading(true);
+      const apiService = await import('../api').then(module => module.default)
+      
+      switch (type) {
+        case 'users':
+          await apiService.restoreUser(itemId)
+          success('User restored successfully and is now active again')
+          break
+        case 'jobs':
+          await apiService.restoreJob(itemId)
+          success('Job restored successfully and is now visible again')
+          break
+        case 'goals':
+          await apiService.restoreGoal(itemId)
+          success('Goal restored successfully and is now available again')
+          break
+        default:
+          break
       }
+      
+      // Refresh the deleted items list
+      await loadDeletedItems(type)
+    } catch (error) {
+      console.error(`Error restoring ${typeName}:`, error)
+      showError(`Failed to restore ${typeName}: ${error.message}`)
+    } finally {
+      setTabLoading(false);
+      setShowRestoreModal(false)
+      setItemToRestore({ id: null, type: null })
     }
   }
 
-  const permanentlyDeleteItem = async (itemId, type) => {
-    // Enhanced confirmation dialog with more explicit warning
-    const typeName = type.slice(0, -1);
-    const message = `
-⚠️ WARNING: PERMANENT DELETION ⚠️
+  const openPermanentDeleteModal = (itemId, type) => {
+    setItemToDeletePermanently({ id: itemId, type })
+    setShowPermanentDeleteModal(true)
+  }
 
-You are about to PERMANENTLY DELETE this ${typeName}.
-
-This action:
-- CANNOT be undone
-- Will remove ALL data related to this ${typeName}
-- Is only available to administrators
-
-Are you absolutely sure you want to continue?
-    `;
+  const permanentlyDeleteItem = async () => {
+    const { id: itemId, type } = itemToDeletePermanently
+    if (!itemId || !type) return
     
-    if (window.confirm(message)) {
-      try {
-        setTabLoading(true);
-        const apiService = await import('../api').then(module => module.default)
-        
-        switch (type) {
-          case 'users':
-            await apiService.permanentlyDeleteUser(itemId)
-            success(`User permanently deleted from the system`)
-            break
-          case 'jobs':
-            await apiService.permanentlyDeleteJob(itemId)
-            success(`Job permanently deleted from the system`)
-            break
-          case 'goals':
-            await apiService.permanentlyDeleteGoal(itemId)
-            success(`Goal permanently deleted from the system`)
-            break
-          default:
-            break
-        }
-        
-        // Refresh the deleted items list
-        await loadDeletedItems(type)
-      } catch (error) {
-        console.error(`Error permanently deleting ${type.slice(0, -1)}:`, error)
-        showError(`Failed to permanently delete ${type.slice(0, -1)}: ${error.message}`)
-      } finally {
-        setTabLoading(false);
+    const typeName = type.slice(0, -1);
+    
+    try {
+      setTabLoading(true);
+      const apiService = await import('../api').then(module => module.default)
+      
+      switch (type) {
+        case 'users':
+          await apiService.permanentlyDeleteUser(itemId)
+          success(`User permanently deleted from the system`)
+          break
+        case 'jobs':
+          await apiService.permanentlyDeleteJob(itemId)
+          success(`Job permanently deleted from the system`)
+          break
+        case 'goals':
+          await apiService.permanentlyDeleteGoal(itemId)
+          success(`Goal permanently deleted from the system`)
+          break
+        default:
+          break
       }
+      
+      // Refresh the deleted items list
+      await loadDeletedItems(type)
+    } catch (error) {
+      console.error(`Error permanently deleting ${typeName}:`, error)
+      showError(`Failed to permanently delete ${typeName}: ${error.message}`)
+    } finally {
+      setTabLoading(false);
+      setShowPermanentDeleteModal(false)
+      setItemToDeletePermanently({ id: null, type: null })
     }
   }
 
@@ -1009,31 +1058,41 @@ Are you absolutely sure you want to continue?
     }
   }
 
-  const deleteJob = async (jobId) => {
-    if (window.confirm('Are you sure you want to delete this job? The job will be moved to trash and can be restored later.')) {
-      try {
-        const token = localStorage.getItem('token')
-        const apiBaseUrl = import.meta.env.VITE_API_URL || 'https://resi-backend-1.onrender.com/api'
-        const response = await fetch(`${apiBaseUrl}/admin/jobs/${jobId}`, {
-          method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
-        
-        if (response.ok) {
-          success('Job deleted successfully')
-          if (currentTab === 'jobs') {
-            await loadAllJobs(pagination.page, 10)
-          } else {
-            await loadRecentJobs()
-          }
-          await loadDashboardStats()
+  const openDeleteJobModal = (jobId) => {
+    setJobToDelete(jobId)
+    setShowDeleteJobModal(true)
+  }
+
+  const deleteJob = async () => {
+    if (!jobToDelete) return
+    
+    try {
+      setTabLoading(true)
+      const token = localStorage.getItem('token')
+      const apiBaseUrl = import.meta.env.VITE_API_URL || 'https://resi-backend-1.onrender.com/api'
+      const response = await fetch(`${apiBaseUrl}/admin/jobs/${jobToDelete}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      
+      if (response.ok) {
+        success('Job deleted successfully')
+        if (currentTab === 'jobs') {
+          await loadAllJobs(pagination.page, 10)
         } else {
-          showError('Failed to delete job')
+          await loadRecentJobs()
         }
-      } catch (error) {
-        console.error('Error deleting job:', error)
-        showError('Error deleting job')
+        await loadDashboardStats()
+      } else {
+        showError('Failed to delete job')
       }
+    } catch (error) {
+      console.error('Error deleting job:', error)
+      showError('Error deleting job')
+    } finally {
+      setTabLoading(false)
+      setShowDeleteJobModal(false)
+      setJobToDelete(null)
     }
   }
 
@@ -1181,6 +1240,12 @@ Are you absolutely sure you want to continue?
           onClick={() => handleTabChange('analytics')}
         >
           Analytics
+        </button>
+        <button 
+          className={`tab-btn ${currentTab === 'reports' ? 'active' : ''}`}
+          onClick={() => handleTabChange('reports')}
+        >
+          Reports
         </button>
         <button 
           className={`tab-btn ${currentTab === 'deleted' ? 'active' : ''}`}
@@ -1374,7 +1439,7 @@ Are you absolutely sure you want to continue?
                             </button>
                             <button 
                               className="action-btn delete-btn"
-                              onClick={() => deleteUser(user._id)}
+                              onClick={() => openDeleteUserModal(user._id)}
                             >
                               Delete
                             </button>
@@ -1441,7 +1506,7 @@ Are you absolutely sure you want to continue?
                                 </button>
                                 <button 
                                   className="action-btn delete-btn"
-                                  onClick={() => deleteUser(user._id)}
+                                  onClick={() => openDeleteUserModal(user._id)}
                                 >
                                   Delete
                                 </button>
@@ -1564,7 +1629,7 @@ Are you absolutely sure you want to continue?
                           </button>
                           <button 
                             className="btn danger"
-                            onClick={() => deleteJob(job._id)}
+                            onClick={() => openDeleteJobModal(job._id)}
                           >
                             Delete
                           </button>
@@ -1798,6 +1863,138 @@ Are you absolutely sure you want to continue?
               </div>
             )}
             
+            {/* Reports Tab */}
+            {currentTab === 'reports' && (
+              <div className="reports-content">
+                {/* Reports Header */}
+                <div className="reports-header">
+                  <h3>User & Job Reports</h3>
+                  <p>Manage reports submitted by users for policy violations</p>
+                </div>
+
+                {/* Report Status Filter */}
+                <div className="reports-filter">
+                  <label htmlFor="report-status-filter">Filter by Status:</label>
+                  <select 
+                    id="report-status-filter"
+                    value={reportStatusFilter} 
+                    onChange={(e) => {
+                      setReportStatusFilter(e.target.value);
+                      loadReports();
+                    }}
+                    className="filter-select"
+                  >
+                    <option value="all">All Reports</option>
+                    <option value="pending">Pending</option>
+                    <option value="resolved">Resolved</option>
+                    <option value="dismissed">Dismissed</option>
+                  </select>
+                  <span className="report-count">{reports.length} reports found</span>
+                </div>
+
+                {/* Reports List */}
+                {reports.length === 0 ? (
+                  <div className="no-data">
+                    <p>No reports found</p>
+                  </div>
+                ) : (
+                  <div className="reports-table-container">
+                    <table className="reports-table">
+                      <thead>
+                        <tr>
+                          <th>Reporter</th>
+                          <th>Type</th>
+                          <th>Reported Item</th>
+                          <th>Reason</th>
+                          <th>Status</th>
+                          <th>Date</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {reports.map(report => (
+                          <tr key={report._id}>
+                            <td>
+                              <div className="user-cell">
+                                <strong>{report.reporter?.firstName} {report.reporter?.lastName}</strong>
+                                <small>{report.reporter?.email}</small>
+                              </div>
+                            </td>
+                            <td>
+                              <span className={`report-type-badge ${report.reportedUser ? 'user' : 'job'}`}>
+                                {report.reportedUser ? '👤 User' : '💼 Job'}
+                              </span>
+                            </td>
+                            <td>
+                              {report.reportedUser ? (
+                                <div className="reported-cell">
+                                  <strong>{report.reportedUser.firstName} {report.reportedUser.lastName}</strong>
+                                  <small>{report.reportedUser.email}</small>
+                                </div>
+                              ) : report.reportedJob ? (
+                                <div className="reported-cell">
+                                  <strong>{report.reportedJob.title}</strong>
+                                  <small>Posted by: {report.reportedJob.postedBy?.firstName || 'Unknown'}</small>
+                                </div>
+                              ) : (
+                                <span className="text-muted">Item deleted</span>
+                              )}
+                            </td>
+                            <td>
+                              <div className="reason-cell" title={report.reason}>
+                                {report.reason.length > 50 
+                                  ? report.reason.substring(0, 50) + '...' 
+                                  : report.reason}
+                              </div>
+                            </td>
+                            <td>
+                              <span className={`status-badge ${report.status}`}>
+                                {report.status.charAt(0).toUpperCase() + report.status.slice(1)}
+                              </span>
+                            </td>
+                            <td>
+                              <small>{formatDate(report.createdAt, 'short')}</small>
+                            </td>
+                            <td>
+                              <div className="action-buttons">
+                                {report.status === 'pending' && (
+                                  <>
+                                    <button
+                                      className="btn-action resolve"
+                                      onClick={() => handleReportStatusUpdate(report._id, 'resolved')}
+                                      title="Mark as Resolved"
+                                    >
+                                      ✓
+                                    </button>
+                                    <button
+                                      className="btn-action dismiss"
+                                      onClick={() => handleReportStatusUpdate(report._id, 'dismissed')}
+                                      title="Dismiss Report"
+                                    >
+                                      ✗
+                                    </button>
+                                  </>
+                                )}
+                                {report.status !== 'pending' && (
+                                  <button
+                                    className="btn-action reopen"
+                                    onClick={() => handleReportStatusUpdate(report._id, 'pending')}
+                                    title="Reopen Report"
+                                  >
+                                    ↻
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+            
             {/* Deleted Items Tab */}
             {currentTab === 'deleted' && (
               <div className="deleted-items-content">
@@ -1872,13 +2069,13 @@ Are you absolutely sure you want to continue?
                                 <td className="actions">
                                   <button 
                                     className="action-btn restore-btn"
-                                    onClick={() => restoreItem(user._id, 'users')}
+                                    onClick={() => openRestoreModal(user._id, 'users')}
                                   >
                                     Restore
                                   </button>
                                   <button 
                                     className="action-btn delete-permanent-btn"
-                                    onClick={() => permanentlyDeleteItem(user._id, 'users')}
+                                    onClick={() => openPermanentDeleteModal(user._id, 'users')}
                                   >
                                     Delete Permanently
                                   </button>
@@ -1932,13 +2129,13 @@ Are you absolutely sure you want to continue?
                             <div className="job-actions">
                               <button 
                                 className="btn secondary restore-btn"
-                                onClick={() => restoreItem(job._id, 'jobs')}
+                                onClick={() => openRestoreModal(job._id, 'jobs')}
                               >
                                 Restore
                               </button>
                               <button 
                                 className="btn danger delete-permanent-btn"
-                                onClick={() => permanentlyDeleteItem(job._id, 'jobs')}
+                                onClick={() => openPermanentDeleteModal(job._id, 'jobs')}
                               >
                                 Delete Permanently
                               </button>
@@ -1993,13 +2190,13 @@ Are you absolutely sure you want to continue?
                                 <td className="actions">
                                   <button 
                                     className="action-btn restore-btn"
-                                    onClick={() => restoreItem(goal._id, 'goals')}
+                                    onClick={() => openRestoreModal(goal._id, 'goals')}
                                   >
                                     Restore
                                   </button>
                                   <button 
                                     className="action-btn delete-permanent-btn"
-                                    onClick={() => permanentlyDeleteItem(goal._id, 'goals')}
+                                    onClick={() => openPermanentDeleteModal(goal._id, 'goals')}
                                   >
                                     Delete Permanently
                                   </button>
@@ -2035,6 +2232,119 @@ Are you absolutely sure you want to continue?
           type={jobModal.type}
           onClose={() => setJobModal({ show: false, job: null, type: 'view' })}
         />
+      )}
+
+      {/* Delete User Confirmation Modal */}
+      {showDeleteUserModal && (
+        <div className="modal-overlay" onClick={() => setShowDeleteUserModal(false)}>
+          <div className="modal-content confirmation-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Delete User</h3>
+              <button className="modal-close" onClick={() => setShowDeleteUserModal(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              <p>Are you sure you want to delete this user?</p>
+              <p className="warning-text">This action can be undone later from the Deleted Items section.</p>
+            </div>
+            <div className="modal-actions">
+              <button className="btn secondary" onClick={() => setShowDeleteUserModal(false)}>
+                Cancel
+              </button>
+              <button className="btn danger" onClick={deleteUser}>
+                Delete User
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Job Confirmation Modal */}
+      {showDeleteJobModal && (
+        <div className="modal-overlay" onClick={() => setShowDeleteJobModal(false)}>
+          <div className="modal-content confirmation-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Delete Job</h3>
+              <button className="modal-close" onClick={() => setShowDeleteJobModal(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              <p>Are you sure you want to delete this job?</p>
+              <p className="warning-text">This action can be undone later from the Deleted Items section.</p>
+            </div>
+            <div className="modal-actions">
+              <button className="btn secondary" onClick={() => setShowDeleteJobModal(false)}>
+                Cancel
+              </button>
+              <button className="btn danger" onClick={deleteJob}>
+                Delete Job
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Restore Item Confirmation Modal */}
+      {showRestoreModal && (
+        <div className="modal-overlay" onClick={() => setShowRestoreModal(false)}>
+          <div className="modal-content confirmation-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Restore {itemToRestore.type ? itemToRestore.type.slice(0, -1).charAt(0).toUpperCase() + itemToRestore.type.slice(0, -1).slice(1) : 'Item'}</h3>
+              <button className="modal-close" onClick={() => setShowRestoreModal(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              <p>Are you sure you want to restore this {itemToRestore.type ? itemToRestore.type.slice(0, -1) : 'item'}?</p>
+              <div className="info-box">
+                <p><strong>This action will:</strong></p>
+                <ul>
+                  <li>Make this {itemToRestore.type ? itemToRestore.type.slice(0, -1) : 'item'} visible again in the system</li>
+                  <li>Notify the owner that their {itemToRestore.type ? itemToRestore.type.slice(0, -1) : 'item'} has been restored</li>
+                  <li>Allow normal interactions with this {itemToRestore.type ? itemToRestore.type.slice(0, -1) : 'item'}</li>
+                </ul>
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button className="btn secondary" onClick={() => setShowRestoreModal(false)}>
+                Cancel
+              </button>
+              <button className="btn primary" onClick={restoreItem}>
+                Restore
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Permanent Delete Confirmation Modal */}
+      {showPermanentDeleteModal && (
+        <div className="modal-overlay" onClick={() => setShowPermanentDeleteModal(false)}>
+          <div className="modal-content confirmation-modal danger-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header danger-header">
+              <h3>⚠️ Permanent Deletion Warning</h3>
+              <button className="modal-close" onClick={() => setShowPermanentDeleteModal(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              <p className="danger-text">
+                You are about to <strong>PERMANENTLY DELETE</strong> this {itemToDeletePermanently.type ? itemToDeletePermanently.type.slice(0, -1) : 'item'}.
+              </p>
+              <div className="warning-box">
+                <p><strong>⚠️ This action:</strong></p>
+                <ul>
+                  <li><strong>CANNOT be undone</strong></li>
+                  <li>Will remove <strong>ALL data</strong> related to this {itemToDeletePermanently.type ? itemToDeletePermanently.type.slice(0, -1) : 'item'}</li>
+                  <li>Is only available to administrators</li>
+                </ul>
+              </div>
+              <p className="confirmation-question">Are you absolutely sure you want to continue?</p>
+            </div>
+            <div className="modal-actions">
+              <button className="btn secondary" onClick={() => setShowPermanentDeleteModal(false)}>
+                Cancel
+              </button>
+              <button className="btn danger-strong" onClick={permanentlyDeleteItem}>
+                Permanently Delete
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
   <style>{`
@@ -2797,6 +3107,219 @@ Are you absolutely sure you want to continue?
 
         .analytics-content {
           text-align: center;
+        }
+
+        /* Reports Styles */
+        .reports-content {
+          padding: 1rem;
+        }
+
+        .reports-header {
+          margin-bottom: 2rem;
+          text-align: center;
+        }
+
+        .reports-header h3 {
+          color: #2b6cb0;
+          margin-bottom: 0.5rem;
+        }
+
+        .reports-header p {
+          color: #666;
+        }
+
+        .reports-filter {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+          margin-bottom: 2rem;
+          padding: 1rem;
+          background: #f7fafc;
+          border-radius: 8px;
+        }
+
+        .reports-filter label {
+          font-weight: 600;
+          color: #2d3748;
+        }
+
+        .filter-select {
+          padding: 0.5rem 1rem;
+          border: 2px solid #e2e8f0;
+          border-radius: 6px;
+          font-size: 1rem;
+          background: white;
+          cursor: pointer;
+        }
+
+        .report-count {
+          margin-left: auto;
+          color: #666;
+          font-weight: 500;
+        }
+
+        .reports-table-container {
+          overflow-x: auto;
+          border-radius: 8px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .reports-table {
+          width: 100%;
+          border-collapse: collapse;
+          background: white;
+        }
+
+        .reports-table thead {
+          background: #2b6cb0;
+          color: white;
+        }
+
+        .reports-table th {
+          padding: 1rem;
+          text-align: left;
+          font-weight: 600;
+        }
+
+        .reports-table td {
+          padding: 1rem;
+          border-bottom: 1px solid #e2e8f0;
+        }
+
+        .reports-table tbody tr:hover {
+          background: #f7fafc;
+        }
+
+        .user-cell {
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+        }
+
+        .user-cell strong {
+          color: #2d3748;
+        }
+
+        .user-cell small {
+          color: #718096;
+          font-size: 0.875rem;
+        }
+
+        .report-type-badge {
+          display: inline-block;
+          padding: 0.25rem 0.75rem;
+          border-radius: 20px;
+          font-size: 0.875rem;
+          font-weight: 500;
+        }
+
+        .report-type-badge.user {
+          background: #bee3f8;
+          color: #2c5282;
+        }
+
+        .report-type-badge.job {
+          background: #c6f6d5;
+          color: #22543d;
+        }
+
+        .reported-cell {
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+        }
+
+        .reported-cell strong {
+          color: #2d3748;
+        }
+
+        .reported-cell small {
+          color: #718096;
+          font-size: 0.875rem;
+        }
+
+        .reason-cell {
+          max-width: 300px;
+          word-wrap: break-word;
+          color: #4a5568;
+        }
+
+        .status-badge {
+          display: inline-block;
+          padding: 0.35rem 0.75rem;
+          border-radius: 20px;
+          font-size: 0.875rem;
+          font-weight: 600;
+          text-transform: capitalize;
+        }
+
+        .status-badge.pending {
+          background: #fef3c7;
+          color: #92400e;
+        }
+
+        .status-badge.resolved {
+          background: #d1fae5;
+          color: #065f46;
+        }
+
+        .status-badge.dismissed {
+          background: #fee2e2;
+          color: #991b1b;
+        }
+
+        .action-buttons {
+          display: flex;
+          gap: 0.5rem;
+        }
+
+        .btn-action {
+          width: 32px;
+          height: 32px;
+          border: none;
+          border-radius: 6px;
+          cursor: pointer;
+          font-size: 1rem;
+          font-weight: bold;
+          transition: all 0.2s;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .btn-action.resolve {
+          background: #10b981;
+          color: white;
+        }
+
+        .btn-action.resolve:hover {
+          background: #059669;
+          transform: scale(1.1);
+        }
+
+        .btn-action.dismiss {
+          background: #ef4444;
+          color: white;
+        }
+
+        .btn-action.dismiss:hover {
+          background: #dc2626;
+          transform: scale(1.1);
+        }
+
+        .btn-action.reopen {
+          background: #f59e0b;
+          color: white;
+        }
+
+        .btn-action.reopen:hover {
+          background: #d97706;
+          transform: scale(1.1);
+        }
+
+        .text-muted {
+          color: #a0aec0;
+          font-style: italic;
         }
 
         .analytics-cards {
@@ -3624,6 +4147,111 @@ Are you absolutely sure you want to continue?
 
         .job-details {
           /* No centering or sizing changes, just a placeholder for future styles if needed */
+        }
+
+        /* Confirmation Modal Styles */
+        .confirmation-modal {
+          max-width: 500px;
+          animation: slideUp 0.3s ease-out;
+        }
+
+        .modal-header.danger-header {
+          background: #fed7d7;
+          color: #c53030;
+          border-bottom: 2px solid #fc8181;
+        }
+
+        .modal-body .warning-text {
+          color: #856404;
+          background: #fff3cd;
+          padding: 0.75rem;
+          border-radius: 6px;
+          margin-top: 0.75rem;
+          font-size: 0.9rem;
+          border-left: 4px solid #ffc107;
+        }
+
+        .modal-body .danger-text {
+          color: #c53030;
+          font-size: 1.1rem;
+          margin-bottom: 1rem;
+          line-height: 1.6;
+        }
+
+        .modal-body .info-box {
+          background: #e6f3ff;
+          border: 1px solid #90cdf4;
+          border-radius: 8px;
+          padding: 1rem;
+          margin-top: 1rem;
+        }
+
+        .modal-body .info-box p {
+          margin: 0 0 0.5rem 0;
+          color: #2b6cb0;
+          font-weight: 600;
+        }
+
+        .modal-body .info-box ul {
+          margin: 0;
+          padding-left: 1.5rem;
+          color: #2c5282;
+        }
+
+        .modal-body .info-box li {
+          margin: 0.25rem 0;
+        }
+
+        .modal-body .warning-box {
+          background: #fff5f5;
+          border: 2px solid #fc8181;
+          border-radius: 8px;
+          padding: 1rem;
+          margin-top: 1rem;
+        }
+
+        .modal-body .warning-box p {
+          margin: 0 0 0.5rem 0;
+          color: #c53030;
+          font-weight: 600;
+        }
+
+        .modal-body .warning-box ul {
+          margin: 0;
+          padding-left: 1.5rem;
+          color: #9b2c2c;
+        }
+
+        .modal-body .warning-box li {
+          margin: 0.25rem 0;
+        }
+
+        .modal-body .confirmation-question {
+          margin-top: 1rem;
+          font-weight: 600;
+          color: #2d3748;
+          font-size: 1.05rem;
+        }
+
+        .btn.danger-strong {
+          background: #c53030;
+          color: white;
+          font-weight: 600;
+        }
+
+        .btn.danger-strong:hover {
+          background: #9b2c2c;
+        }
+
+        @keyframes slideUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
         }
       `}</style>
     </div>

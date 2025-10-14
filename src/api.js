@@ -102,7 +102,7 @@ class ApiService {
 
         // Handle rate limiting
         if (response.status === 429) {
-          throw new Error("Too many attempts. Please wait and try again later.");
+          throw new Error(data?.alert || data?.message || "Too many attempts. Please wait and try again later.");
         }
 
         if (response.status === 401 && !isProfilePictureUpload && !isProfileUpdate) {
@@ -113,20 +113,24 @@ class ApiService {
         } else if (response.status === 403) {
           throw new Error(data?.alert || data?.message || "Forbidden: You don't have permission");
         } else if (response.status === 404) {
-          throw new Error("Resource not found");
+          throw new Error(data?.alert || data?.message || "Resource not found");
         } else if (response.status >= 500) {
-          throw new Error("Server error. Please try again later.");
+          throw new Error(data?.alert || data?.message || "Server error. Please try again later.");
+        } else if (response.status === 400) {
+          // Handle 400 Bad Request - this is where "Email already registered" comes from
+          throw new Error(data?.alert || data?.message || "Bad request. Please check your input.");
         } else {
           if (
             response.status === 401 &&
             (isProfilePictureUpload || isProfileUpdate)
           ) {
             throw new Error(
-              "Authentication required. Please try saving your changes again."
+              data?.alert || data?.message || "Authentication required. Please try saving your changes again."
             );
           }
           throw new Error(
-            data?.message ||
+            data?.alert ||
+              data?.message ||
               data?.error ||
               `HTTP error! status: ${response.status}`
           );
@@ -570,7 +574,14 @@ class ApiService {
 
   // ================= Reports =================
   async reportUser(reportData) {
-    return this.request("/reports", {
+    return this.request("/reports/user", {
+      method: "POST",
+      body: reportData,
+    });
+  }
+
+  async reportJob(reportData) {
+    return this.request("/reports/job", {
       method: "POST",
       body: reportData,
     });
