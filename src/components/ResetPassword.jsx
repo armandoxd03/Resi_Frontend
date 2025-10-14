@@ -1,14 +1,15 @@
 import { useState, useEffect, useContext } from 'react'
-import { Link, useSearchParams, useNavigate } from 'react-router-dom'
+import { Link, useSearchParams, useNavigate, useParams } from 'react-router-dom'
 import { AlertContext } from '../context/AlertContext'
 
 function ResetPassword() {
   const [searchParams] = useSearchParams()
+  const { token: urlToken } = useParams()
   const navigate = useNavigate()
   const { showAlert } = useContext(AlertContext)
-  
+
   const [formData, setFormData] = useState({
-    token: searchParams.get('token') || '',
+    token: urlToken || searchParams.get('token') || '',
     newPassword: '',
     confirmPassword: ''
   })
