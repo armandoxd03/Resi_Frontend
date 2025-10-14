@@ -29,6 +29,7 @@ import Layout from './components/Layout'
 // Auth context for managing user state
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { AlertProvider } from './context/AlertContext'
+import { NotificationProvider } from './context/NotificationContext'
 
 // Protected Route component
 function ProtectedRoute({ children, requiredUserType = null }) {
@@ -94,9 +95,10 @@ function App() {
   return (
     <AlertProvider>
       <AuthProvider>
-        <Router>
-          <Layout>
-            <Routes>
+        <NotificationProvider>
+          <Router>
+            <Layout>
+              <Routes>
             {/* Public routes */}
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
@@ -189,7 +191,8 @@ function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Layout>
-        </Router>
+          </Router>
+        </NotificationProvider>
       </AuthProvider>
     </AlertProvider>
   )

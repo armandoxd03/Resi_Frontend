@@ -18,6 +18,9 @@ function GoalManagement() {
     targetAmount: '',
     currentAmount: '0'
   })
+  // State for delete confirmation modal
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [goalToDelete, setGoalToDelete] = useState(null)
   
   const { isLoggedIn } = useContext(AuthContext)
   const { success, error: showError } = useContext(AlertContext)
@@ -164,20 +167,31 @@ function GoalManagement() {
     }
   }
   
-  const handleDeleteGoal = async (goalId) => {
-    if (!confirm('Are you sure you want to delete this goal?')) return
+  // Open delete confirmation modal
+  const openDeleteModal = (goal) => {
+    setGoalToDelete(goal);
+    setShowDeleteModal(true);
+  }
+  
+  // Handle goal deletion with modal
+  const handleDeleteGoal = async () => {
+    if (!goalToDelete) return;
     
     try {
       // Find if this is the active goal
-      const isActiveGoal = goals.active.some(goal => goal._id === goalId)
+      const isActiveGoal = goals.active.some(goal => goal._id === goalToDelete._id)
       
-      const result = await apiService.deleteGoal(goalId)
+      const result = await apiService.deleteGoal(goalToDelete._id)
       
       if (isActiveGoal && result.deletedGoal?.wasActive) {
-        success('Active goal deleted. Next available goal has been activated.')
+        success('Active goal moved to trash. Next available goal has been activated.')
       } else {
-        success('Goal deleted successfully!')
+        success('Goal moved to trash successfully!')
       }
+      
+      // Close modal
+      setShowDeleteModal(false)
+      setGoalToDelete(null)
       
       // Reload goals to reflect changes (including any new active goal)
       loadGoals()
@@ -271,7 +285,7 @@ function GoalManagement() {
                           </button>
                           <button 
                             className="delete-btn"
-                            onClick={() => handleDeleteGoal(goal._id)}
+                            onClick={() => openDeleteModal(goal)}
                             title="Delete Goal"
                           >
                             ×
@@ -325,7 +339,7 @@ function GoalManagement() {
                           </button>
                           <button 
                             className="delete-btn"
-                            onClick={() => handleDeleteGoal(goal._id)}
+                            onClick={() => openDeleteModal(goal)}
                             title="Delete Goal"
                           >
                             ×
@@ -1256,7 +1270,121 @@ function GoalManagement() {
             justify-content: center;
           }
         }
+        
+        /* Delete Modal Styles */
+        .delete-modal {
+          max-width: 500px;
+        }
+        
+        .warning-icon {
+          font-size: 3rem;
+          color: #e53e3e;
+          margin-bottom: 1rem;
+          text-align: center;
+        }
+        
+        .delete-warning {
+          text-align: center;
+          padding: 1rem;
+        }
+        
+        .delete-warning h4 {
+          margin-top: 0;
+          color: #2d3748;
+        }
+        
+        .delete-warning p {
+          margin-bottom: 1.5rem;
+          color: #4a5568;
+        }
+        
+        .delete-goal-details {
+          background: #f7fafc;
+          border-radius: 8px;
+          padding: 1rem;
+          margin: 1rem 0;
+          border: 1px solid #e2e8f0;
+          text-align: left;
+        }
+        
+        .detail-item {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 0.5rem;
+        }
+        
+        .detail-item:last-child {
+          margin-bottom: 0;
+        }
+        
+        .detail-label {
+          font-weight: 500;
+          color: #4a5568;
+        }
+        
+        .detail-value {
+          color: #2d3748;
+        }
       `}</style>
+      
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && goalToDelete && (
+        <div className="modal-overlay" onClick={() => setShowDeleteModal(false)}>
+          <div className="modal-content delete-modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Confirm Deletion</h3>
+              <button className="modal-close" onClick={() => setShowDeleteModal(false)}>×</button>
+            </div>
+            
+            <div className="modal-body">
+              <div className="delete-warning">
+                <div className="warning-icon">⚠️</div>
+                <h4>Are you sure you want to delete this goal?</h4>
+                <p>
+                  <strong>"{goalToDelete.description}"</strong> will be moved to trash. 
+                  You can restore it later by contacting an administrator if needed.
+                </p>
+                
+                <div className="delete-goal-details">
+                  <div className="detail-item">
+                    <span className="detail-label">Target Amount:</span>
+                    <span className="detail-value">₱{goalToDelete.targetAmount.toLocaleString()}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="detail-label">Current Amount:</span>
+                    <span className="detail-value">₱{goalToDelete.currentAmount.toLocaleString()}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="detail-label">Progress:</span>
+                    <span className="detail-value">{goalToDelete.progress?.toFixed(1) || '0'}%</span>
+                  </div>
+                  {goalToDelete.isActive && (
+                    <div className="detail-item">
+                      <span className="detail-label">Status:</span>
+                      <span className="status-badge active">Active Goal</span>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="modal-actions">
+                  <button 
+                    className="btn secondary" 
+                    onClick={() => setShowDeleteModal(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    className="btn danger" 
+                    onClick={handleDeleteGoal}
+                  >
+                    Delete Goal
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

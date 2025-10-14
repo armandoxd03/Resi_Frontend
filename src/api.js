@@ -629,6 +629,103 @@ class ApiService {
     return this.request(`/admin/export/ratings${query ? "?" + query : ""}`);
   }
 
+  // Soft Delete Management
+  async getDeletedUsers() {
+    return this.request("/admin/soft-delete/users");
+  }
+
+  async getDeletedJobs() {
+    return this.request("/admin/soft-delete/jobs");
+  }
+
+  async getDeletedGoals() {
+    return this.request("/admin/soft-delete/goals");
+  }
+
+  async restoreUser(userId) {
+    try {
+      return await this.request(`/admin/soft-delete/users/${userId}/restore`, {
+        method: "POST"
+      });
+    } catch (error) {
+      console.error('Error restoring user:', error);
+      if (error.message.includes('403') || error.message.includes('Forbidden')) {
+        throw new Error('Not authorized: Only administrators can restore deleted users');
+      }
+      throw error;
+    }
+  }
+
+  async restoreJob(jobId) {
+    try {
+      return await this.request(`/admin/soft-delete/jobs/${jobId}/restore`, {
+        method: "POST"
+      });
+    } catch (error) {
+      console.error('Error restoring job:', error);
+      if (error.message.includes('403') || error.message.includes('Forbidden')) {
+        throw new Error('Not authorized: Only administrators can restore deleted jobs');
+      }
+      throw error;
+    }
+  }
+
+  async restoreGoal(goalId) {
+    try {
+      return await this.request(`/admin/soft-delete/goals/${goalId}/restore`, {
+        method: "POST"
+      });
+    } catch (error) {
+      console.error('Error restoring goal:', error);
+      if (error.message.includes('403') || error.message.includes('Forbidden')) {
+        throw new Error('Not authorized: Only administrators can restore deleted goals');
+      }
+      throw error;
+    }
+  }
+
+  async permanentlyDeleteUser(userId) {
+    try {
+      return await this.request(`/admin/soft-delete/users/${userId}/permanent`, {
+        method: "DELETE"
+      });
+    } catch (error) {
+      console.error('Error permanently deleting user:', error);
+      if (error.message.includes('403') || error.message.includes('Forbidden')) {
+        throw new Error('Not authorized: Only administrators can permanently delete users');
+      }
+      throw error;
+    }
+  }
+
+  async permanentlyDeleteJob(jobId) {
+    try {
+      return await this.request(`/admin/soft-delete/jobs/${jobId}/permanent`, {
+        method: "DELETE"
+      });
+    } catch (error) {
+      console.error('Error permanently deleting job:', error);
+      if (error.message.includes('403') || error.message.includes('Forbidden')) {
+        throw new Error('Not authorized: Only administrators can permanently delete jobs');
+      }
+      throw error;
+    }
+  }
+
+  async permanentlyDeleteGoal(goalId) {
+    try {
+      return await this.request(`/admin/soft-delete/goals/${goalId}/permanent`, {
+        method: "DELETE"
+      });
+    } catch (error) {
+      console.error('Error permanently deleting goal:', error);
+      if (error.message.includes('403') || error.message.includes('Forbidden')) {
+        throw new Error('Not authorized: Only administrators can permanently delete goals');
+      }
+      throw error;
+    }
+  }
+
   // ================= Activity =================
   async getUserActivity(userId, params = {}) {
     const query = new URLSearchParams(params).toString();

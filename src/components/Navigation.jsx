@@ -1,9 +1,12 @@
 import React, { useContext, useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
+import { NotificationContext } from '../context/NotificationContext';
+import NotificationDropdown from './NotificationDropdown';
 
 function Navigation() {
   const { user, logout, hasAccessTo, isAuthenticated, loading } = useContext(AuthContext);
+  const { unreadCount } = useContext(NotificationContext);
   const location = useLocation();
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -109,6 +112,11 @@ function Navigation() {
                 )}
               </div>
 
+              {/* Notifications */}
+              <div className="notification-container">
+                <NotificationDropdown />
+              </div>
+              
               {/* User Menu */}
               <div className="user-menu" ref={userMenuRef}>
                 <button 
@@ -215,6 +223,17 @@ function Navigation() {
                 <span className="nav-icon">👤</span>
                 Profile
               </NavLink>
+              
+              <div className="mobile-notification-container">
+                <span className="nav-icon">🔔</span>
+                Notifications
+                {unreadCount > 0 && (
+                  <span className="mobile-notification-badge">{unreadCount}</span>
+                )}
+                <div className="mobile-notification-dropdown">
+                  <NotificationDropdown isMobile={true} />
+                </div>
+              </div>
 
               {(user?.userType === 'employee' || user?.userType === 'both') && (
                 <>
@@ -640,6 +659,58 @@ function Navigation() {
           color: var(--error-700);
           border-color: var(--error-300);
           transform: translateX(4px);
+        }
+
+        /* Notification Styles */
+        .notification-container {
+          position: relative;
+          display: flex;
+          align-items: center;
+        }
+        
+        .mobile-notification-container {
+          display: flex;
+          align-items: center;
+          gap: var(--spacing-3);
+          padding: var(--spacing-4);
+          background: rgba(255, 255, 255, 0.8);
+          color: var(--gray-700);
+          border-radius: var(--radius-xl);
+          font-size: var(--font-size-base);
+          border: 1px solid var(--primary-200);
+          backdrop-filter: blur(10px);
+          position: relative;
+          cursor: pointer;
+        }
+        
+        .mobile-notification-container:hover {
+          background: var(--primary-100);
+          color: var(--primary-700);
+          border-color: var(--primary-300);
+        }
+        
+        .mobile-notification-badge {
+          background-color: var(--error-600);
+          color: white;
+          border-radius: 50%;
+          min-width: 18px;
+          height: 18px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 0.7rem;
+          font-weight: bold;
+          margin-left: var(--spacing-2);
+          padding: 0 4px;
+        }
+        
+        .mobile-notification-dropdown {
+          position: absolute;
+          top: 100%;
+          left: 0;
+          right: 0;
+          z-index: 1001;
+          margin-top: var(--spacing-2);
         }
 
         /* Responsive Design */

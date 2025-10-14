@@ -33,6 +33,9 @@ function EmployerDashboard() {
     barangay: '',
     skillsRequired: []
   })
+  // State for delete confirmation modal
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [jobToDelete, setJobToDelete] = useState(null)
   // New state for worker profile modal
   const [showWorkerModal, setShowWorkerModal] = useState(false)
   const [currentWorker, setCurrentWorker] = useState(null)
@@ -340,30 +343,41 @@ function EmployerDashboard() {
     }
   }
 
-  const deleteJob = async (jobId) => {
-    if (window.confirm('Are you sure you want to delete this job?')) {
-      try {
-        setLoading(true);
-        console.log('Deleting job with ID:', jobId);
-        
-        // Use apiService to connect with backend
-        const result = await apiService.deleteJob(jobId);
-        
-        console.log('Delete job response:', result);
-        
-        success(result.alert || 'Job deleted successfully');
-        // Refresh the jobs list and dashboard stats
-        await loadMyJobs();
-        await loadDashboardStats();
-      } catch (error) {
-        console.error('Error deleting job:', error);
-        showError(`Error deleting job: ${error.message}`);
-      } finally {
-        setLoading(false);
-      }
+  // Open delete confirmation modal
+  const openDeleteModal = (job) => {
+    setJobToDelete(job);
+    setShowDeleteModal(true);
+  };
+
+  // Handle job deletion
+  const deleteJob = async () => {
+    if (!jobToDelete) return;
+    
+    try {
+      setLoading(true);
+      console.log('Deleting job with ID:', jobToDelete._id);
+      
+      // Use apiService to connect with backend
+      const result = await apiService.deleteJob(jobToDelete._id);
+      
+      console.log('Delete job response:', result);
+      
+      success(result.alert || 'Job deleted successfully and moved to trash');
+      // Refresh the jobs list and dashboard stats
+      await loadMyJobs();
+      await loadDashboardStats();
+      
+      // Close the modal
+      setShowDeleteModal(false);
+      setJobToDelete(null);
+    } catch (error) {
+      console.error('Error deleting job:', error);
+      showError(`Error deleting job: ${error.message}`);
+    } finally {
+      setLoading(false);
     }
   }
-
+  
   const handleApplication = async (applicationId, action, jobId, userId) => {
     try {
       console.log(`handleApplication called with:`, {
@@ -647,7 +661,7 @@ function EmployerDashboard() {
                         )}
                         <button 
                           className="btn danger"
-                          onClick={() => deleteJob(job._id)}
+                          onClick={() => openDeleteModal(job)}
                         >
                           Delete
                         </button>
@@ -2792,6 +2806,77 @@ function EmployerDashboard() {
                 aria-label="Cancel invitation"
               >
                 Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && jobToDelete && (
+        <div className="modal-overlay" onClick={() => setShowDeleteModal(false)}>
+          <div className="modal-content delete-modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Confirm Deletion</h3>
+              <button className="modal-close" onClick={() => setShowDeleteModal(false)}>×</button>
+            </div>
+            
+            <div className="modal-body">
+              <div className="delete-warning">
+                <div className="warning-icon">⚠️</div>
+                <h4>Are you sure you want to delete this job?</h4>
+                <p>
+                  <strong>"{jobToDelete.title}"</strong> will be moved to trash. 
+                  This action is reversible - you can contact an administrator to restore the job if needed.
+                </p>
+                
+                <div className="delete-job-details">
+                  <div className="detail-item">
+                    <span className="detail-label">Job Price:</span>
+                    <span className="detail-value">{formatPrice(jobToDelete.price)}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="detail-label">Location:</span>
+                    <span className="detail-value">{jobToDelete.barangay || 'Not specified'}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="detail-label">Status:</span>
+                    <span className={`status-badge ${jobToDelete.isOpen ? 'active' : 'closed'}`}>
+                      {jobToDelete.isOpen ? 'Open' : 'Closed'}
+                    </span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="detail-label">Applicants:</span>
+                    <span className="detail-value">{jobToDelete.applicants?.length || 0}</span>
+                  </div>
+                </div>
+                
+                <div className="delete-note">
+                  <span className="note-icon">📝</span>
+                  <span className="note-text">
+                    Soft deleted jobs are not visible to users but can be restored by an administrator.
+                  </span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="modal-footer">
+              <button 
+                className="btn secondary" 
+                onClick={() => setShowDeleteModal(false)}
+              >
+                Cancel
+              </button>
+              <button 
+                className="btn danger"
+                onClick={deleteJob}
+                disabled={loading}
+              >
+                {loading ? (
+                  <span className="spinner-inline"></span>
+                ) : (
+                  'Delete Job'
+                )}
               </button>
             </div>
           </div>

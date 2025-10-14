@@ -395,6 +395,10 @@ function AdminDashboard() {
   })
   const [users, setUsers] = useState([])
   const [jobs, setJobs] = useState([])
+  const [deletedUsers, setDeletedUsers] = useState([])
+  const [deletedJobs, setDeletedJobs] = useState([])
+  const [deletedGoals, setDeletedGoals] = useState([])
+  const [deletedItemType, setDeletedItemType] = useState('users') // 'users', 'jobs', 'goals'
   const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0 })
   const [tabLoading, setTabLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -486,6 +490,9 @@ function AdminDashboard() {
         case 'analytics':
           await loadAnalytics()
           break
+        case 'deleted':
+          await loadDeletedItems(deletedItemType)
+          break
         default:
           break
       }
@@ -494,6 +501,40 @@ function AdminDashboard() {
       showError(`Failed to load ${tabId} data`)
     } finally {
       setTabLoading(false)
+    }
+  }
+  
+  const loadDeletedItems = async (type = 'users') => {
+    try {
+      setDeletedItemType(type)
+      const apiService = await import('../api').then(module => module.default)
+      
+      let data = []
+      switch (type) {
+        case 'users':
+          const usersResponse = await apiService.getDeletedUsers()
+          data = usersResponse.data || []
+          setDeletedUsers(data)
+          break
+        case 'jobs':
+          const jobsResponse = await apiService.getDeletedJobs()
+          data = jobsResponse.data || []
+          setDeletedJobs(data)
+          break
+        case 'goals':
+          const goalsResponse = await apiService.getDeletedGoals()
+          data = goalsResponse.data || []
+          setDeletedGoals(data)
+          break
+        default:
+          break
+      }
+      
+      console.log(`Loaded ${data.length} deleted ${type}`)
+      
+    } catch (error) {
+      console.error(`Error loading deleted ${type}:`, error)
+      showError(`Failed to load deleted ${type}`)
     }
   }
 
@@ -703,7 +744,7 @@ function AdminDashboard() {
   }
 
   const deleteUser = async (userId) => {
-    if (window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+    if (window.confirm('Are you sure you want to delete this user? The user will be moved to trash and can be restored later.')) {
       try {
         const token = localStorage.getItem('token')
         const apiBaseUrl = import.meta.env.VITE_API_URL || 'https://resi-backend-1.onrender.com/api'
@@ -739,6 +780,102 @@ function AdminDashboard() {
       } catch (error) {
         console.error('Error deleting user:', error)
         showError('Error deleting user: Network error')
+      }
+    }
+  }
+  
+  // Functions for managing deleted items
+  const restoreItem = async (itemId, type) => {
+    const typeName = type.slice(0, -1);
+    const message = `
+Restore ${typeName}?
+
+This action will:
+- Make this ${typeName} visible again in the system
+- Notify the owner that their ${typeName} has been restored
+- Allow normal interactions with this ${typeName}
+
+Proceed with restoration?
+    `;
+    
+    if (window.confirm(message)) {
+      try {
+        setTabLoading(true);
+        const apiService = await import('../api').then(module => module.default)
+        
+        switch (type) {
+          case 'users':
+            await apiService.restoreUser(itemId)
+            success('User restored successfully and is now active again')
+            break
+          case 'jobs':
+            await apiService.restoreJob(itemId)
+            success('Job restored successfully and is now visible again')
+            break
+          case 'goals':
+            await apiService.restoreGoal(itemId)
+            success('Goal restored successfully and is now available again')
+            break
+          default:
+            break
+        }
+        
+        // Refresh the deleted items list
+        await loadDeletedItems(type)
+      } catch (error) {
+        console.error(`Error restoring ${typeName}:`, error)
+        showError(`Failed to restore ${typeName}: ${error.message}`)
+      } finally {
+        setTabLoading(false);
+      }
+    }
+  }
+
+  const permanentlyDeleteItem = async (itemId, type) => {
+    // Enhanced confirmation dialog with more explicit warning
+    const typeName = type.slice(0, -1);
+    const message = `
+⚠️ WARNING: PERMANENT DELETION ⚠️
+
+You are about to PERMANENTLY DELETE this ${typeName}.
+
+This action:
+- CANNOT be undone
+- Will remove ALL data related to this ${typeName}
+- Is only available to administrators
+
+Are you absolutely sure you want to continue?
+    `;
+    
+    if (window.confirm(message)) {
+      try {
+        setTabLoading(true);
+        const apiService = await import('../api').then(module => module.default)
+        
+        switch (type) {
+          case 'users':
+            await apiService.permanentlyDeleteUser(itemId)
+            success(`User permanently deleted from the system`)
+            break
+          case 'jobs':
+            await apiService.permanentlyDeleteJob(itemId)
+            success(`Job permanently deleted from the system`)
+            break
+          case 'goals':
+            await apiService.permanentlyDeleteGoal(itemId)
+            success(`Goal permanently deleted from the system`)
+            break
+          default:
+            break
+        }
+        
+        // Refresh the deleted items list
+        await loadDeletedItems(type)
+      } catch (error) {
+        console.error(`Error permanently deleting ${type.slice(0, -1)}:`, error)
+        showError(`Failed to permanently delete ${type.slice(0, -1)}: ${error.message}`)
+      } finally {
+        setTabLoading(false);
       }
     }
   }
@@ -873,7 +1010,7 @@ function AdminDashboard() {
   }
 
   const deleteJob = async (jobId) => {
-    if (window.confirm('Are you sure you want to delete this job? This action cannot be undone.')) {
+    if (window.confirm('Are you sure you want to delete this job? The job will be moved to trash and can be restored later.')) {
       try {
         const token = localStorage.getItem('token')
         const apiBaseUrl = import.meta.env.VITE_API_URL || 'https://resi-backend-1.onrender.com/api'
@@ -1044,6 +1181,12 @@ function AdminDashboard() {
           onClick={() => handleTabChange('analytics')}
         >
           Analytics
+        </button>
+        <button 
+          className={`tab-btn ${currentTab === 'deleted' ? 'active' : ''}`}
+          onClick={() => handleTabChange('deleted')}
+        >
+          Deleted Items
         </button>
       </div>
 
@@ -1654,6 +1797,223 @@ function AdminDashboard() {
                 </div>
               </div>
             )}
+            
+            {/* Deleted Items Tab */}
+            {currentTab === 'deleted' && (
+              <div className="deleted-items-content">
+                {/* Deleted Items Header */}
+                <div className="deleted-items-header">
+                  <h3>Deleted Items</h3>
+                  <p>Manage soft-deleted items across the platform</p>
+                </div>
+
+                {/* Item Type Selector */}
+                <div className="deleted-items-selector">
+                  <button 
+                    className={`selector-btn ${deletedItemType === 'users' ? 'active' : ''}`}
+                    onClick={() => loadDeletedItems('users')}
+                  >
+                    Users
+                  </button>
+                  <button 
+                    className={`selector-btn ${deletedItemType === 'jobs' ? 'active' : ''}`}
+                    onClick={() => loadDeletedItems('jobs')}
+                  >
+                    Jobs
+                  </button>
+                  <button 
+                    className={`selector-btn ${deletedItemType === 'goals' ? 'active' : ''}`}
+                    onClick={() => loadDeletedItems('goals')}
+                  >
+                    Goals
+                  </button>
+                </div>
+
+                {/* Deleted Users */}
+                {deletedItemType === 'users' && (
+                  <div className="deleted-users">
+                    <h4>Deleted Users <span className="count-badge">{deletedUsers.length}</span></h4>
+                    
+                    {deletedUsers.length === 0 ? (
+                      <div className="no-data">
+                        <p>No deleted users found</p>
+                      </div>
+                    ) : (
+                      <div className="deleted-items-table-container">
+                        <table className="deleted-items-table">
+                          <thead>
+                            <tr>
+                              <th>Name</th>
+                              <th>Email</th>
+                              <th>Type</th>
+                              <th>Barangay</th>
+                              <th>Deleted At</th>
+                              <th>Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {deletedUsers.map(user => (
+                              <tr key={user._id} className="deleted-item">
+                                <td>
+                                  <div className="user-name">
+                                    {user.firstName} {user.lastName}
+                                  </div>
+                                </td>
+                                <td>{user.email}</td>
+                                <td>
+                                  <span className="user-type" data-type={user.userType}>
+                                    {user.userType}
+                                  </span>
+                                </td>
+                                <td>{user.barangay || 'N/A'}</td>
+                                <td>
+                                  {formatDate(user.updatedAt, 'short')}
+                                </td>
+                                <td className="actions">
+                                  <button 
+                                    className="action-btn restore-btn"
+                                    onClick={() => restoreItem(user._id, 'users')}
+                                  >
+                                    Restore
+                                  </button>
+                                  <button 
+                                    className="action-btn delete-permanent-btn"
+                                    onClick={() => permanentlyDeleteItem(user._id, 'users')}
+                                  >
+                                    Delete Permanently
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Deleted Jobs */}
+                {deletedItemType === 'jobs' && (
+                  <div className="deleted-jobs">
+                    <h4>Deleted Jobs <span className="count-badge">{deletedJobs.length}</span></h4>
+                    
+                    {deletedJobs.length === 0 ? (
+                      <div className="no-data">
+                        <p>No deleted jobs found</p>
+                      </div>
+                    ) : (
+                      <div className="deleted-items-grid">
+                        {deletedJobs.map(job => (
+                          <div key={job._id} className="deleted-job-card">
+                            <div className="job-header">
+                              <h4>{job.title}</h4>
+                              <div className="job-price">₱{job.price?.toLocaleString() || '0'}</div>
+                            </div>
+                            
+                            <div className="job-meta">
+                              <div className="meta-item">
+                                <span className="icon">📍</span>
+                                {job.barangay || job.location}
+                              </div>
+                              <div className="meta-item">
+                                <span className="icon">👤</span>
+                                {job.postedBy?.firstName} {job.postedBy?.lastName}
+                              </div>
+                              <div className="meta-item">
+                                <span className="icon">📅</span>
+                                {formatDate(job.updatedAt || job.createdAt, 'short')}
+                              </div>
+                              <div className="meta-item">
+                                <span className="icon">🗑️</span>
+                                Deleted
+                              </div>
+                            </div>
+                            
+                            <div className="job-actions">
+                              <button 
+                                className="btn secondary restore-btn"
+                                onClick={() => restoreItem(job._id, 'jobs')}
+                              >
+                                Restore
+                              </button>
+                              <button 
+                                className="btn danger delete-permanent-btn"
+                                onClick={() => permanentlyDeleteItem(job._id, 'jobs')}
+                              >
+                                Delete Permanently
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Deleted Goals */}
+                {deletedItemType === 'goals' && (
+                  <div className="deleted-goals">
+                    <h4>Deleted Goals <span className="count-badge">{deletedGoals.length}</span></h4>
+                    
+                    {deletedGoals.length === 0 ? (
+                      <div className="no-data">
+                        <p>No deleted goals found</p>
+                      </div>
+                    ) : (
+                      <div className="deleted-items-table-container">
+                        <table className="deleted-items-table">
+                          <thead>
+                            <tr>
+                              <th>Title</th>
+                              <th>Target</th>
+                              <th>Progress</th>
+                              <th>Owner</th>
+                              <th>Deleted At</th>
+                              <th>Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {deletedGoals.map(goal => (
+                              <tr key={goal._id} className="deleted-item">
+                                <td>
+                                  <div className="goal-title">
+                                    {goal.title}
+                                  </div>
+                                </td>
+                                <td>₱{goal.targetAmount?.toLocaleString() || '0'}</td>
+                                <td>
+                                  {((goal.currentAmount / goal.targetAmount) * 100).toFixed(1)}%
+                                </td>
+                                <td>
+                                  {goal.user?.firstName} {goal.user?.lastName}
+                                </td>
+                                <td>
+                                  {formatDate(goal.updatedAt, 'short')}
+                                </td>
+                                <td className="actions">
+                                  <button 
+                                    className="action-btn restore-btn"
+                                    onClick={() => restoreItem(goal._id, 'goals')}
+                                  >
+                                    Restore
+                                  </button>
+                                  <button 
+                                    className="action-btn delete-permanent-btn"
+                                    onClick={() => permanentlyDeleteItem(goal._id, 'goals')}
+                                  >
+                                    Delete Permanently
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </>
         )}
       </div>
@@ -1682,6 +2042,131 @@ function AdminDashboard() {
           max-width: 1400px;
           margin: 0 auto;
           padding: 2rem;
+        }
+        
+        /* Deleted Items Styles */
+        .deleted-items-header {
+          margin-bottom: 1.5rem;
+        }
+        
+        .deleted-items-header h3 {
+          margin: 0;
+          color: #2b6cb0;
+          font-size: 1.8rem;
+        }
+        
+        .deleted-items-header p {
+          margin: 0.5rem 0;
+          color: #666;
+        }
+        
+        .deleted-items-selector {
+          display: flex;
+          gap: 1rem;
+          margin-bottom: 2rem;
+          padding: 0.5rem;
+          background: #f7fafc;
+          border-radius: 8px;
+          border: 1px solid #e2e8f0;
+        }
+        
+        .selector-btn {
+          padding: 0.75rem 1.5rem;
+          border: none;
+          background: transparent;
+          color: #4a5568;
+          border-radius: 6px;
+          font-size: 1rem;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        
+        .selector-btn.active {
+          background: #2b6cb0;
+          color: white;
+          font-weight: 600;
+        }
+        
+        .selector-btn:not(.active):hover {
+          background: #e2e8f0;
+          color: #2d3748;
+        }
+        
+        .count-badge {
+          background: #e2e8f0;
+          color: #4a5568;
+          padding: 0.25rem 0.75rem;
+          border-radius: 16px;
+          font-size: 0.875rem;
+          margin-left: 0.5rem;
+        }
+        
+        .deleted-items-table-container {
+          overflow-x: auto;
+          border: 1px solid #e2e8f0;
+          border-radius: 8px;
+          margin-bottom: 2rem;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .deleted-items-table {
+          width: 100%;
+          border-collapse: collapse;
+        }
+        
+        .deleted-items-table th {
+          background: #f7fafc;
+          padding: 0.875rem 1rem;
+          text-align: left;
+          font-weight: 600;
+          color: #4a5568;
+          border-bottom: 2px solid #e2e8f0;
+        }
+        
+        .deleted-items-table td {
+          padding: 0.875rem 1rem;
+          border-bottom: 1px solid #e2e8f0;
+          color: #2d3748;
+        }
+        
+        .deleted-item:hover {
+          background: #f7fafc;
+        }
+        
+        .deleted-items-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+          gap: 1.5rem;
+          margin-bottom: 2rem;
+        }
+        
+        .deleted-job-card {
+          background: white;
+          border-radius: 8px;
+          padding: 1.25rem;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+          border: 1px solid #e2e8f0;
+          display: flex;
+          flex-direction: column;
+        }
+        
+        .action-btn.restore-btn {
+          background: #3182ce;
+          color: white;
+        }
+        
+        .action-btn.restore-btn:hover {
+          background: #2b6cb0;
+        }
+        
+        .action-btn.delete-permanent-btn {
+          background: #e53e3e;
+          color: white;
+        }
+        
+        .action-btn.delete-permanent-btn:hover {
+          background: #c53030;
         }
 
         .dashboard-header {

@@ -255,15 +255,10 @@ function ResetPassword() {
       <div className="reset-password-container fade-in">
         <div className="reset-card">
           <div className="success-content">
-            <div className="success-icon">
-              ✅
-            </div>
-            
             <div className="success-message">
-              <h2>Password Reset Successful!</h2>
-              <p>Your password has been successfully reset. You can now login with your new password.</p>
+              <h2>Password Reset Successful</h2>
+              <p>Your password has been reset. Please log in with your new password.</p>
             </div>
-            
             <button 
               onClick={handleGoToLogin}
               className="btn btn-primary"

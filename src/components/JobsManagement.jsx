@@ -16,6 +16,9 @@ function JobsManagement() {
   const [selectedJob, setSelectedJob] = useState(null)
   const [editingJob, setEditingJob] = useState(null)
   const [showEditModal, setShowEditModal] = useState(false)
+  // State for delete confirmation modal
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [jobToDelete, setJobToDelete] = useState(null)
 
   const limit = 10
 
@@ -118,11 +121,18 @@ function JobsManagement() {
     }
   }
 
-  const deleteJob = async (jobId) => {
-    if (!window.confirm('Are you sure you want to delete this job? This action cannot be undone.')) return
-
+  // Open delete confirmation modal
+  const openDeleteModal = (job) => {
+    setJobToDelete(job);
+    setShowDeleteModal(true);
+  }
+  
+  // Handle job deletion with modal
+  const deleteJob = async () => {
+    if (!jobToDelete) return;
+    
     try {
-  const response = await fetch(`${import.meta.env.VITE_API_URL}/admin/jobs/${jobId}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/admin/jobs/${jobToDelete._id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -135,6 +145,9 @@ function JobsManagement() {
       }
 
       showAlert('Job deleted successfully', 'success')
+      // Close the modal
+      setShowDeleteModal(false)
+      setJobToDelete(null)
       loadJobs()
     } catch (error) {
       console.error('Error deleting job:', error)
@@ -453,7 +466,7 @@ function JobsManagement() {
                         <i className="fas fa-times"></i>
                       </button>
                     )}
-                    <button className="action-btn delete-btn" onClick={() => deleteJob(job._id)}>
+                    <button className="action-btn delete-btn" onClick={() => openDeleteModal(job)}>
                       <i className="fas fa-trash"></i>
                     </button>
                   </td>
@@ -1073,7 +1086,145 @@ function JobsManagement() {
             flex-direction: column;
           }
         }
+        
+        /* Delete Modal Styles */
+        .delete-modal {
+          max-width: 500px;
+        }
+        
+        .warning-icon {
+          font-size: 3rem;
+          color: #e53e3e;
+          margin-bottom: 1rem;
+          text-align: center;
+        }
+        
+        .delete-warning {
+          text-align: center;
+          padding: 1rem;
+        }
+        
+        .delete-warning h4 {
+          margin-top: 0;
+          color: #2d3748;
+        }
+        
+        .delete-warning p {
+          margin-bottom: 1.5rem;
+          color: #4a5568;
+        }
+        
+        .delete-job-details {
+          background: #f7fafc;
+          border-radius: 8px;
+          padding: 1rem;
+          margin: 1rem 0;
+          border: 1px solid #e2e8f0;
+          text-align: left;
+        }
+        
+        .detail-item {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 0.5rem;
+        }
+        
+        .detail-item:last-child {
+          margin-bottom: 0;
+        }
+        
+        .detail-label {
+          font-weight: 500;
+          color: #4a5568;
+        }
+        
+        .detail-value {
+          color: #2d3748;
+        }
+        
+        .status-badge {
+          padding: 0.25rem 0.5rem;
+          border-radius: 8px;
+          font-size: 0.8rem;
+          font-weight: 500;
+        }
+        
+        .status-badge.open {
+          background: #c6f6d5;
+          color: #22543d;
+        }
+        
+        .status-badge.closed {
+          background: #fed7d7;
+          color: #822727;
+        }
+        
+        .status-badge.completed {
+          background: #bee3f8;
+          color: #2a4365;
+        }
       `}</style>
+      
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && jobToDelete && (
+        <div className="modal-overlay" onClick={() => setShowDeleteModal(false)}>
+          <div className="modal-content delete-modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Confirm Deletion</h3>
+              <button className="modal-close" onClick={() => setShowDeleteModal(false)}>×</button>
+            </div>
+            
+            <div className="modal-body">
+              <div className="delete-warning">
+                <div className="warning-icon">⚠️</div>
+                <h4>Are you sure you want to delete this job?</h4>
+                <p>
+                  <strong>"{jobToDelete.title}"</strong> will be moved to trash. 
+                  This action is reversible - you can contact an administrator to restore the job if needed.
+                </p>
+                
+                <div className="delete-job-details">
+                  <div className="detail-item">
+                    <span className="detail-label">Job Price:</span>
+                    <span className="detail-value">₱{jobToDelete.price ? jobToDelete.price.toLocaleString() : '0'}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="detail-label">Location:</span>
+                    <span className="detail-value">{jobToDelete.barangay || 'Not specified'}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="detail-label">Status:</span>
+                    <span className={`status-badge ${jobToDelete.status || 'open'}`}>
+                      {jobToDelete.status ? jobToDelete.status.charAt(0).toUpperCase() + jobToDelete.status.slice(1) : 'Open'}
+                    </span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="detail-label">Created On:</span>
+                    <span className="detail-value">
+                      {jobToDelete.createdAt ? new Date(jobToDelete.createdAt).toLocaleDateString() : 'Unknown'}
+                    </span>
+                  </div>
+                </div>
+                
+                <div className="modal-actions">
+                  <button 
+                    className="btn secondary" 
+                    onClick={() => setShowDeleteModal(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    className="btn danger" 
+                    onClick={deleteJob}
+                  >
+                    Delete Job
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

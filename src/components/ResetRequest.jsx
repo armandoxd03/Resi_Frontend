@@ -125,16 +125,11 @@ function ResetRequest() {
       <div className="reset-request-container fade-in">
         <div className="reset-card">
           <div className="success-content">
-            <div className="success-icon">
-              ✅
-            </div>
-            
             <div className="success-message">
-              <h2>Check Your Email</h2>
-              <p>We've sent a password reset link to your email address.</p>
+              <h2>Reset Link Sent</h2>
+              <p>Please check your email for the password reset link.</p>
               <p className="note">If you don't see the email, check your spam folder.</p>
             </div>
-            
             <div className="action-buttons">
               <button 
                 type="button" 
@@ -178,18 +173,6 @@ function ResetRequest() {
                 className={emailError ? 'error' : email && !emailError ? 'valid' : ''}
                 autoFocus
               />
-              <div className="input-status">
-                {emailError && touched && (
-                  <span className="error-icon" title={emailError}>
-                    ❌
-                  </span>
-                )}
-                {email && !emailError && touched && (
-                  <span className="success-icon" title="Valid email">
-                    ✅
-                  </span>
-                )}
-              </div>
             </div>
             {emailError && touched && (
               <div className="field-error">

@@ -14,6 +14,7 @@ function Login() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [fieldErrors, setFieldErrors] = useState({})
+  const [showPassword, setShowPassword] = useState(false)
   
   const { login, isAuthenticated } = useAuth()
   const { success, error: showError } = useAlert()
@@ -222,11 +223,6 @@ function Login() {
                     ❌
                   </span>
                 )}
-                {formData.email && !fieldErrors.email && (
-                  <span className="success-icon" title="Valid email">
-                    ✅
-                  </span>
-                )}
               </div>
             </div>
             {fieldErrors.email && (
@@ -240,7 +236,7 @@ function Login() {
             <label htmlFor="password">Password</label>
             <div className="input-wrapper">
               <input
-                type="password"
+                type={showPassword ? "text" : "password"}
                 id="password"
                 name="password"
                 value={formData.password}
@@ -257,10 +253,22 @@ function Login() {
                     ❌
                   </span>
                 )}
-                {formData.password && !fieldErrors.password && (
-                  <span className="success-icon" title="Valid password">
-                    ✅
-                  </span>
+              </div>
+              <div 
+                className="password-toggle-icon" 
+                onClick={() => setShowPassword(!showPassword)}
+                title={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                  </svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                    <line x1="1" y1="1" x2="23" y2="23"></line>
+                  </svg>
                 )}
               </div>
             </div>
@@ -408,7 +416,8 @@ function Login() {
         }
 
         input[type="email"],
-        input[type="password"] {
+        input[type="password"],
+        input[type="text"] {
           width: 100%;
           padding: 1rem 3rem 1rem 1.25rem;
           border: 2px solid rgba(147, 51, 234, 0.1);
@@ -422,7 +431,8 @@ function Login() {
         }
 
         input[type="email"]:focus,
-        input[type="password"]:focus {
+        input[type="password"]:focus,
+        input[type="text"]:focus {
           outline: none;
           border-color: #9333ea;
           background: rgba(255, 255, 255, 0.95);
@@ -431,7 +441,8 @@ function Login() {
         }
 
         input[type="email"]:hover,
-        input[type="password"]:hover {
+        input[type="password"]:hover,
+        input[type="text"]:hover {
           border-color: rgba(147, 51, 234, 0.2);
           background: rgba(255, 255, 255, 0.9);
         }
@@ -469,7 +480,6 @@ function Login() {
           display: flex;
           align-items: center;
           gap: 0.25rem;
-          pointer-events: none;
           z-index: 1;
         }
 
@@ -483,6 +493,34 @@ function Login() {
           color: #059669;
           display: flex;
           align-items: center;
+        }
+        
+        .password-toggle-icon {
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 24px;
+          height: 24px;
+          padding: 2px;
+          color: #64748b;
+          transition: color 0.2s ease, transform 0.1s ease;
+          user-select: none;
+          position: absolute;
+          right: 1rem;
+          top: 50%;
+          transform: translateY(-50%);
+          z-index: 2;
+          border-radius: 50%;
+        }
+        
+        .password-toggle-icon:hover {
+          color: #9333ea;
+          background: rgba(147, 51, 234, 0.05);
+        }
+        
+        .password-toggle-icon:active {
+          transform: translateY(-50%) scale(0.95);
         }
 
         .field-error {
