@@ -82,11 +82,6 @@ export function AuthProvider({ children }) {
         setIsAuthenticated(true)
         return true
       } else {
-        // Don't log in production
-        if (process.env.NODE_ENV !== 'production') {
-          console.log('Token verification failed with status:', response.status)
-        }
-        
         // Only clear auth data for auth errors, not for server errors
         if (response.status === 401 || response.status === 403) {
           clearAuthData()
@@ -94,8 +89,8 @@ export function AuthProvider({ children }) {
         return false
       }
     } catch (error) {
-      // Don't log in production unless it's not a timeout
-      if (process.env.NODE_ENV !== 'production' && error.name !== 'AbortError') {
+      // Silent error handling in production
+      if (process.env.NODE_ENV === 'development' && error.name !== 'AbortError') {
         console.error('Token verification error:', error)
       }
       
@@ -107,19 +102,9 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     const initAuth = async () => {
-      // Set DEBUG_AUTH to false in production
-      const DEBUG_AUTH = false;
       const token = localStorage.getItem('token')
       const userData = localStorage.getItem('userData')
       const lastVerified = localStorage.getItem('lastTokenVerification')
-      
-      if (DEBUG_AUTH) {
-        console.log('AuthContext initialization:', { 
-          token: !!token, 
-          hasUserData: !!userData,
-          lastVerified
-        })
-      }
       
       if (token && userData) {
         try {
@@ -133,9 +118,6 @@ export function AuthProvider({ children }) {
           const fifteenMinutes = 15 * 60 * 1000
           
           if (!lastVerified || (now - lastVerifiedTime > fifteenMinutes)) {
-            if (DEBUG_AUTH) {
-              console.log('Verifying token on startup (last verified:', new Date(lastVerifiedTime).toLocaleTimeString(), ')')
-            }
             
             // Don't wait for verification to complete
             verifyToken().then(result => {
@@ -143,14 +125,16 @@ export function AuthProvider({ children }) {
                 localStorage.setItem('lastTokenVerification', now.toString())
               }
             }).catch(err => {
-              console.error('Background token verification failed:', err);
+              if (process.env.NODE_ENV === 'development') {
+                console.error('Background token verification failed:', err);
+              }
             });
-          } else if (DEBUG_AUTH) {
-            console.log('Skipping verification, token verified recently at:', new Date(lastVerifiedTime).toLocaleTimeString())
           }
           
         } catch (error) {
-          console.error('Error parsing user data:', error)
+          if (process.env.NODE_ENV === 'development') {
+            console.error('Error parsing user data:', error)
+          }
           clearAuthData()
         }
       }
@@ -198,18 +182,10 @@ export function AuthProvider({ children }) {
   }, [isAuthenticated, verifyToken, clearAuthData])
 
   const login = (token, userData) => {
-    // Set DEBUG_AUTH to true to show authentication-related logs
-    const DEBUG_AUTH = false;
-    if (DEBUG_AUTH) {
-      console.log('Login called with:', { token: !!token, userData })
-    }
     localStorage.setItem('token', token)
     localStorage.setItem('userData', JSON.stringify(userData))
     setUser(userData)
     setIsAuthenticated(true)
-    if (DEBUG_AUTH) {
-      console.log('Login completed, auth state:', { isAuthenticated: true, user: userData })
-    }
   }
 
   const logout = useCallback(() => {

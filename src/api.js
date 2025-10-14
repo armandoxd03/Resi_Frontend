@@ -365,18 +365,15 @@ class ApiService {
 
   async cancelApplication(jobId) {
     try {
-      // Add debugging
-      console.log('cancelApplication API call for jobId:', jobId);
-      console.log('User token available:', !!localStorage.getItem("token"));
-      
       const result = await this.request(`/jobs/${jobId}/cancel-application`, {
         method: "DELETE",
       });
       
-      console.log('cancelApplication successful:', result);
       return result;
     } catch (error) {
-      console.error('cancelApplication API error:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('cancelApplication API error:', error);
+      }
       // Enhance error handling to provide better error messages
       if (error.message.includes('No application found')) {
         throw new Error('No application found');
