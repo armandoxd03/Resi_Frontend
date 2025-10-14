@@ -23,6 +23,7 @@ import UserDetails from './components/UserDetails'
 import ResetRequest from './components/ResetRequest'
 import ResetPassword from './components/ResetPassword'
 import VerifyEmail from './components/VerifyEmail'
+import Notifications from './components/Notifications'
 
 // Layout component
 import Layout from './components/Layout'
@@ -175,6 +176,12 @@ function App() {
             <Route path="/settings" element={
               <ProtectedRoute>
                 <Settings />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/notifications" element={
+              <ProtectedRoute>
+                <Notifications />
               </ProtectedRoute>
             } />
             

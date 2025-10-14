@@ -556,7 +556,7 @@ class ApiService {
   }
 
   async markAllNotificationsAsRead() {
-    return this.request("/notifications/read", {
+    return this.request("/notifications/read-all", {
       method: "PATCH",
       body: { all: true },
     });
