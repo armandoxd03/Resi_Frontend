@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { AlertContext } from '../context/AlertContext';
 import apiService from '../api';
+import ReportModal from './ReportModal';
 
 function EmployeeDashboard() {
   const [stats, setStats] = useState({
@@ -22,8 +23,9 @@ function EmployeeDashboard() {
   const [activeTab, setActiveTab] = useState('active'); // 'active' or 'history'
   const [showJobModal, setShowJobModal] = useState(false);
   const [selectedJob, setSelectedJob] = useState(null);
+  const [reportModal, setReportModal] = useState({ isOpen: false, jobId: null, jobTitle: '' });
   const { user, isAuthenticated, loading: authLoading } = useContext(AuthContext);
-  const { error: showError } = useContext(AlertContext);
+  const { error: showError, success } = useContext(AlertContext);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -140,6 +142,34 @@ function EmployeeDashboard() {
   const closeJobDetailsModal = () => {
     setShowJobModal(false);
     setSelectedJob(null);
+  };
+
+  const openReportModal = (job, e) => {
+    if (e) e.stopPropagation();
+    setReportModal({
+      isOpen: true,
+      jobId: job._id,
+      jobTitle: job.title
+    });
+  };
+
+  const closeReportModal = () => {
+    setReportModal({ isOpen: false, jobId: null, jobTitle: '' });
+  };
+
+  const handleReportSubmit = async (reason) => {
+    try {
+      await apiService.reportJob({
+        reportedJobId: reportModal.jobId,
+        reason
+      });
+      success('Report submitted successfully');
+      closeReportModal();
+    } catch (error) {
+      console.error('Error submitting report:', error);
+      showError(error.message || 'Failed to submit report');
+      throw error;
+    }
   };
 
   const handleApplyToJob = async (jobId) => {
@@ -526,6 +556,13 @@ function EmployeeDashboard() {
                     >
                       View Details
                     </button>
+                    <button 
+                      onClick={(e) => openReportModal(job, e)} 
+                      className="btn danger"
+                      title="Report this job"
+                    >
+                      🚩 Report
+                    </button>
                   </div>
                 </div>
               ))
@@ -615,23 +652,43 @@ function EmployeeDashboard() {
             </div>
 
             <div className="modal-footer">
-              {selectedJob.isOpen && !myApplications.some(app => app._id === selectedJob._id) ? (
+              <div className="modal-footer-left">
                 <button 
-                  onClick={() => handleApplyToJob(selectedJob._id)}
-                  className="btn primary btn-large"
+                  onClick={(e) => openReportModal(selectedJob, e)} 
+                  className="btn danger"
+                  title="Report this job"
                 >
-                  Apply Now
+                  🚩 Report Job
                 </button>
-              ) : (
-                myApplications.some(app => app._id === selectedJob._id) && (
-                  <span className="applied-badge-large">Already Applied</span>
-                )
-              )}
-              <button onClick={closeJobDetailsModal} className="btn secondary">Close</button>
+              </div>
+              <div className="modal-footer-right">
+                {selectedJob.isOpen && !myApplications.some(app => app._id === selectedJob._id) ? (
+                  <button 
+                    onClick={() => handleApplyToJob(selectedJob._id)}
+                    className="btn primary btn-large"
+                  >
+                    Apply Now
+                  </button>
+                ) : (
+                  myApplications.some(app => app._id === selectedJob._id) && (
+                    <span className="applied-badge-large">Already Applied</span>
+                  )
+                )}
+                <button onClick={closeJobDetailsModal} className="btn secondary">Close</button>
+              </div>
             </div>
           </div>
         </div>
       )}
+
+      {/* Report Modal */}
+      <ReportModal
+        isOpen={reportModal.isOpen}
+        onClose={closeReportModal}
+        onSubmit={handleReportSubmit}
+        reportType="Job"
+        targetName={reportModal.jobTitle}
+      />
 
       <style>{`
         .dashboard-container {
@@ -1125,10 +1182,21 @@ function EmployeeDashboard() {
 
         .modal-footer {
           display: flex;
-          gap: 1rem;
-          justify-content: flex-end;
+          justify-content: space-between;
+          align-items: center;
           padding: 1.5rem;
           border-top: 2px solid #e2e8f0;
+        }
+
+        .modal-footer-left {
+          display: flex;
+          gap: 0.5rem;
+        }
+
+        .modal-footer-right {
+          display: flex;
+          gap: 1rem;
+          align-items: center;
         }
 
         .btn-large {
@@ -1203,14 +1271,15 @@ function EmployeeDashboard() {
         }
 
         .btn.danger {
-          background: #e53e3e;
+          background: #dc2626;
           color: white;
+          border: none;
         }
 
         .btn.danger:hover {
-          background: #c53030;
+          background: #b91c1c;
           transform: translateY(-1px);
-          box-shadow: 0 2px 8px rgba(229, 62, 62, 0.3);
+          box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
         }
 
         .loading-state {

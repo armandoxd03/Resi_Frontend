@@ -28,6 +28,10 @@ function Settings() {
     confirmPassword: ''
   })
   
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
+  const [showNewPassword, setShowNewPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  
   const [supportData, setSupportData] = useState({
     subject: '',
     message: '',
@@ -318,29 +322,49 @@ function Settings() {
             <form onSubmit={handlePasswordSubmit} className="modal-form">
               <div className="form-group">
                 <label>Current Password</label>
-                <input
-                  type="password"
-                  value={passwordData.currentPassword}
-                  onChange={(e) => setPasswordData(prev => ({
-                    ...prev,
-                    currentPassword: e.target.value
-                  }))}
-                  required
-                />
+                <div className="password-input-wrapper">
+                  <input
+                    type={showCurrentPassword ? "text" : "password"}
+                    value={passwordData.currentPassword}
+                    onChange={(e) => setPasswordData(prev => ({
+                      ...prev,
+                      currentPassword: e.target.value
+                    }))}
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="password-toggle-btn"
+                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                    aria-label="Toggle password visibility"
+                  >
+                    {showCurrentPassword ? '👁️' : '👁️‍🗨️'}
+                  </button>
+                </div>
               </div>
 
               <div className="form-group">
                 <label>New Password</label>
-                <input
-                  type="password"
-                  value={passwordData.newPassword}
-                  onChange={(e) => setPasswordData(prev => ({
-                    ...prev,
-                    newPassword: e.target.value
-                  }))}
-                  required
-                  minLength="8"
-                />
+                <div className="password-input-wrapper">
+                  <input
+                    type={showNewPassword ? "text" : "password"}
+                    value={passwordData.newPassword}
+                    onChange={(e) => setPasswordData(prev => ({
+                      ...prev,
+                      newPassword: e.target.value
+                    }))}
+                    required
+                    minLength="8"
+                  />
+                  <button
+                    type="button"
+                    className="password-toggle-btn"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    aria-label="Toggle password visibility"
+                  >
+                    {showNewPassword ? '👁️' : '👁️‍🗨️'}
+                  </button>
+                </div>
               </div>
               {passwordData.newPassword && (
                 <div className="password-requirements">
@@ -361,16 +385,26 @@ function Settings() {
 
               <div className="form-group">
                 <label>Confirm New Password</label>
-                <input
-                  type="password"
-                  value={passwordData.confirmPassword}
-                  onChange={(e) => setPasswordData(prev => ({
-                    ...prev,
-                    confirmPassword: e.target.value
-                  }))}
-                  required
-                  minLength="8"
-                />
+                <div className="password-input-wrapper">
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={passwordData.confirmPassword}
+                    onChange={(e) => setPasswordData(prev => ({
+                      ...prev,
+                      confirmPassword: e.target.value
+                    }))}
+                    required
+                    minLength="8"
+                  />
+                  <button
+                    type="button"
+                    className="password-toggle-btn"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    aria-label="Toggle password visibility"
+                  >
+                    {showConfirmPassword ? '👁️' : '👁️‍🗨️'}
+                  </button>
+                </div>
               </div>
 
               <div className="modal-actions">
@@ -717,7 +751,36 @@ function Settings() {
           border-color: #2b6cb0;
         }
 
+        .password-input-wrapper {
+          position: relative;
+          width: 100%;
+        }
 
+        .password-input-wrapper input {
+          width: 100%;
+          padding-right: 3rem;
+        }
+
+        .password-toggle-btn {
+          position: absolute;
+          right: 0.75rem;
+          top: 50%;
+          transform: translateY(-50%);
+          background: none;
+          border: none;
+          cursor: pointer;
+          font-size: 1.25rem;
+          color: #666;
+          padding: 0.25rem;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: color 0.2s;
+        }
+
+        .password-toggle-btn:hover {
+          color: #2b6cb0;
+        }
 
         .password-requirements {
           margin-top: 0.5rem;
