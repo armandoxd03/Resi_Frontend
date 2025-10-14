@@ -22,6 +22,7 @@ import Help from './components/Help'
 import UserDetails from './components/UserDetails'
 import ResetRequest from './components/ResetRequest'
 import ResetPassword from './components/ResetPassword'
+import VerifyEmail from './components/VerifyEmail'
 
 // Layout component
 import Layout from './components/Layout'
@@ -106,6 +107,7 @@ function App() {
             <Route path="/reset-request" element={<ResetRequest />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/help" element={<Help />} />
+            <Route path="/verify-email/:token" element={<VerifyEmail />} />
             
             {/* Protected routes */}
             <Route path="/landing" element={
