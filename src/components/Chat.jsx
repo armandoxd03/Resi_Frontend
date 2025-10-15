@@ -31,9 +31,14 @@ function Chat() {
       setSearching(true);
       apiService.searchUsers({ search: searchQuery.trim() })
         .then(res => {
-          const users = res?.data?.users || res?.data?.data?.users || [];
+          console.log('Search response:', res);
+          // Try multiple paths to extract users array
+          const users = res?.users || res?.data?.users || res?.data?.data?.users || [];
+          console.log('Extracted users:', users);
           // Exclude self
-          setSearchResults(users.filter(u => u._id !== user._id));
+          const filteredUsers = users.filter(u => u._id !== user._id);
+          console.log('Filtered users (excluding self):', filteredUsers);
+          setSearchResults(filteredUsers);
         })
         .catch((err) => {
           console.error('Search error:', err);
