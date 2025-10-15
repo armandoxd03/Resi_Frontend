@@ -284,12 +284,22 @@ function Chat() {
                   >
                     <div className="conv-avatar">
                       {userObj.profilePicture ? (
-                        <img src={getProfilePictureUrl(userObj)} alt={userObj.firstName} />
-                      ) : (
-                        <div className="avatar-placeholder">
-                          {userObj.firstName?.[0]}{userObj.lastName?.[0]}
-                        </div>
-                      )}
+                        <img 
+                          src={getProfilePictureUrl(userObj)} 
+                          alt={userObj.firstName}
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.style.display = 'none';
+                            e.target.nextSibling.style.display = 'flex';
+                          }}
+                        />
+                      ) : null}
+                      <div 
+                        className="avatar-placeholder" 
+                        style={{ display: userObj.profilePicture ? 'none' : 'flex' }}
+                      >
+                        {userObj.firstName?.[0]}{userObj.lastName?.[0]}
+                      </div>
                       <span className="online-indicator"></span>
                     </div>
                     <div className="conv-info">
@@ -323,12 +333,22 @@ function Chat() {
                 >
                   <div className="conv-avatar">
                     {conv.user.profilePicture ? (
-                      <img src={getProfilePictureUrl(conv.user)} alt={conv.user.firstName} />
-                    ) : (
-                      <div className="avatar-placeholder">
-                        {conv.user.firstName?.[0]}{conv.user.lastName?.[0]}
-                      </div>
-                    )}
+                      <img 
+                        src={getProfilePictureUrl(conv.user)} 
+                        alt={conv.user.firstName}
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.style.display = 'none';
+                          e.target.nextSibling.style.display = 'flex';
+                        }}
+                      />
+                    ) : null}
+                    <div 
+                      className="avatar-placeholder" 
+                      style={{ display: conv.user.profilePicture ? 'none' : 'flex' }}
+                    >
+                      {conv.user.firstName?.[0]}{conv.user.lastName?.[0]}
+                    </div>
                     <span className="online-indicator"></span>
                   </div>
                   <div className="conv-info">
@@ -357,12 +377,22 @@ function Chat() {
                 <div className="chat-user-info">
                   <div className="chat-avatar">
                     {selectedConversation.user.profilePicture ? (
-                      <img src={getProfilePictureUrl(selectedConversation.user)} alt={selectedConversation.user.firstName} />
-                    ) : (
-                      <div className="avatar-placeholder">
-                        {selectedConversation.user.firstName?.[0]}{selectedConversation.user.lastName?.[0]}
-                      </div>
-                    )}
+                      <img 
+                        src={getProfilePictureUrl(selectedConversation.user)} 
+                        alt={selectedConversation.user.firstName}
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.style.display = 'none';
+                          e.target.nextSibling.style.display = 'flex';
+                        }}
+                      />
+                    ) : null}
+                    <div 
+                      className="avatar-placeholder" 
+                      style={{ display: selectedConversation.user.profilePicture ? 'none' : 'flex' }}
+                    >
+                      {selectedConversation.user.firstName?.[0]}{selectedConversation.user.lastName?.[0]}
+                    </div>
                   </div>
                   <div>
                     <h3>{selectedConversation.user.firstName} {selectedConversation.user.lastName}</h3>
@@ -381,12 +411,22 @@ function Chat() {
                       {!isOwnMessage && showAvatar && (
                         <div className="message-avatar">
                           {selectedConversation.user.profilePicture ? (
-                            <img src={getProfilePictureUrl(selectedConversation.user)} alt="" />
-                          ) : (
-                            <div className="avatar-placeholder-sm">
-                              {selectedConversation.user.firstName?.[0]}
-                            </div>
-                          )}
+                            <img 
+                              src={getProfilePictureUrl(selectedConversation.user)} 
+                              alt=""
+                              onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.style.display = 'none';
+                                e.target.nextSibling.style.display = 'flex';
+                              }}
+                            />
+                          ) : null}
+                          <div 
+                            className="avatar-placeholder-sm" 
+                            style={{ display: selectedConversation.user.profilePicture ? 'none' : 'flex' }}
+                          >
+                            {selectedConversation.user.firstName?.[0]}
+                          </div>
                         </div>
                       )}
                       {!isOwnMessage && !showAvatar && <div className="message-avatar-spacer"></div>}
