@@ -528,17 +528,17 @@ function AdminDashboard() {
       switch (type) {
         case 'users':
           const usersResponse = await apiService.getDeletedUsers()
-          data = usersResponse.data || []
+          data = usersResponse.data?.users || usersResponse.users || []
           setDeletedUsers(data)
           break
         case 'jobs':
           const jobsResponse = await apiService.getDeletedJobs()
-          data = jobsResponse.data || []
+          data = jobsResponse.data?.jobs || jobsResponse.jobs || []
           setDeletedJobs(data)
           break
         case 'goals':
           const goalsResponse = await apiService.getDeletedGoals()
-          data = goalsResponse.data || []
+          data = goalsResponse.data?.goals || goalsResponse.goals || []
           setDeletedGoals(data)
           break
         default:
