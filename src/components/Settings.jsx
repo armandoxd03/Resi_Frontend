@@ -168,14 +168,30 @@ function Settings() {
     e.preventDefault()
     
     try {
+      // Validate required fields
+      if (!supportData.subject || !supportData.message) {
+        showError('Please fill in all required fields')
+        return
+      }
+
+      if (!user || !user.email) {
+        showError('User information not available. Please log in again.')
+        return
+      }
+
       // Submit support ticket to backend with priority
-      await apiService.createSupportTicket({
-        name: `${user.firstName} ${user.lastName}`,
+      const ticketData = {
+        name: user.firstName && user.lastName 
+          ? `${user.firstName} ${user.lastName}`.trim()
+          : user.email.split('@')[0], // Fallback to email username
         email: user.email,
-        subject: supportData.subject,
-        message: supportData.message,
-        priority: supportData.priority
-      })
+        subject: supportData.subject.trim(),
+        message: supportData.message.trim(),
+        priority: supportData.priority || 'medium'
+      }
+
+      console.log('Submitting support ticket:', ticketData)
+      await apiService.createSupportTicket(ticketData)
       
       success('Support ticket submitted successfully. We will get back to you soon.')
       setShowSupportModal(false)
@@ -186,7 +202,7 @@ function Settings() {
       })
     } catch (error) {
       console.error('Support submission error:', error)
-      showError('Failed to submit support ticket')
+      showError(error.message || 'Failed to submit support ticket')
     }
   }
 
