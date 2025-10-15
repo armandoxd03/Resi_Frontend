@@ -35,10 +35,15 @@ function Chat() {
           // Exclude self
           setSearchResults(users.filter(u => u._id !== user._id));
         })
-        .catch(() => setSearchResults([]))
+        .catch((err) => {
+          console.error('Search error:', err);
+          showError('Failed to search users. Please try again.');
+          setSearchResults([]);
+        })
         .finally(() => setSearching(false));
     } else {
       setSearchResults([]);
+      setSearching(false);
     }
   }, [searchQuery, user._id]);
 
@@ -250,34 +255,47 @@ function Chat() {
             </div>
           </div>
 
-          {/* Show user search results if searching and results exist */}
-          {searchQuery.trim().length > 0 && searchResults.length > 0 && (
+          {/* Show search status */}
+          {searchQuery.trim().length > 0 && (
             <div className="search-results-list">
-              <div className="search-results-header">Users</div>
-              {searchResults.map(userObj => (
-                <div
-                  key={userObj._id}
-                  className="conversation-item"
-                  onClick={() => handleStartConversation(userObj)}
-                >
-                  <div className="conv-avatar">
-                    {userObj.profilePicture ? (
-                      <img src={getProfilePictureUrl(userObj)} alt={userObj.firstName} />
-                    ) : (
-                      <div className="avatar-placeholder">
-                        {userObj.firstName?.[0]}{userObj.lastName?.[0]}
+              <div className="search-results-header">
+                {searching ? 'Searching...' : `Users ${searchResults.length > 0 ? `(${searchResults.length})` : ''}`}
+              </div>
+              {searching ? (
+                <div className="search-loading">
+                  <div className="spinner-sm"></div>
+                  <span>Searching users...</span>
+                </div>
+              ) : searchResults.length > 0 ? (
+                searchResults.map(userObj => (
+                  <div
+                    key={userObj._id}
+                    className="conversation-item"
+                    onClick={() => handleStartConversation(userObj)}
+                  >
+                    <div className="conv-avatar">
+                      {userObj.profilePicture ? (
+                        <img src={getProfilePictureUrl(userObj)} alt={userObj.firstName} />
+                      ) : (
+                        <div className="avatar-placeholder">
+                          {userObj.firstName?.[0]}{userObj.lastName?.[0]}
+                        </div>
+                      )}
+                      <span className="online-indicator"></span>
+                    </div>
+                    <div className="conv-info">
+                      <div className="conv-header">
+                        <h3>{userObj.firstName} {userObj.lastName}</h3>
+                        <span className="user-type">{userObj.userType}</span>
                       </div>
-                    )}
-                    <span className="online-indicator"></span>
-                  </div>
-                  <div className="conv-info">
-                    <div className="conv-header">
-                      <h3>{userObj.firstName} {userObj.lastName}</h3>
-                      <span className="user-type">{userObj.userType}</span>
                     </div>
                   </div>
+                ))
+              ) : (
+                <div className="search-no-results">
+                  <span>No users found</span>
                 </div>
-              ))}
+              )}
             </div>
           )}
 
@@ -417,6 +435,27 @@ const chatStyles = `
     font-weight: 600;
     color: #6366f1;
     padding: 0.5rem 1.5rem 0.25rem 1.5rem;
+  }
+  .search-loading {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 1.5rem;
+    color: #64748b;
+  }
+  .spinner-sm {
+    width: 20px;
+    height: 20px;
+    border: 3px solid #e2e8f0;
+    border-top: 3px solid #6366f1;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+  .search-no-results {
+    padding: 1.5rem;
+    text-align: center;
+    color: #94a3b8;
+    font-size: 0.9rem;
   }
   .chat-container {
     max-width: 1400px;
