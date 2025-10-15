@@ -33,6 +33,8 @@ function Settings() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   
   const [supportData, setSupportData] = useState({
+    name: '',
+    email: '',
     subject: '',
     message: '',
     priority: 'medium'
@@ -48,6 +50,17 @@ function Settings() {
     }
     loadSettings()
   }, [isLoggedIn, showError])
+
+  // Pre-populate support form with user data when available
+  useEffect(() => {
+    if (user && showSupportModal && !supportData.name && !supportData.email) {
+      setSupportData(prev => ({
+        ...prev,
+        name: user.firstName && user.lastName ? `${user.firstName} ${user.lastName}`.trim() : '',
+        email: user.email || ''
+      }))
+    }
+  }, [user, showSupportModal])
 
   const loadSettings = async () => {
     try {
@@ -168,45 +181,31 @@ function Settings() {
     e.preventDefault()
     
     try {
+      // Use form data first, fallback to user context
+      const ticketName = supportData.name.trim() || 
+        (user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}`.trim() : '') ||
+        user?.email?.split('@')[0] || 
+        'User'
+      
+      const ticketEmail = supportData.email.trim() || user?.email || ''
+
       // Validate required fields
-      if (!supportData.subject || !supportData.message) {
+      if (!ticketName || !ticketEmail || !supportData.subject || !supportData.message) {
         showError('Please fill in all required fields')
         return
       }
 
-      // Try to get user info from multiple sources
-      let userEmail = user?.email
-      let userName = ''
-
-      // If user context not available, try localStorage
-      if (!userEmail) {
-        const userData = localStorage.getItem('userData')
-        if (userData) {
-          try {
-            const parsedUser = JSON.parse(userData)
-            userEmail = parsedUser.email
-            userName = parsedUser.firstName && parsedUser.lastName
-              ? `${parsedUser.firstName} ${parsedUser.lastName}`.trim()
-              : parsedUser.email?.split('@')[0] || 'User'
-          } catch (e) {
-            console.error('Error parsing user data:', e)
-          }
-        }
-      } else {
-        userName = user.firstName && user.lastName 
-          ? `${user.firstName} ${user.lastName}`.trim()
-          : user.email?.split('@')[0] || 'User'
-      }
-
-      if (!userEmail) {
-        showError('Unable to retrieve your email. Please refresh and try again.')
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailRegex.test(ticketEmail)) {
+        showError('Please enter a valid email address')
         return
       }
 
       // Submit support ticket to backend with priority
       const ticketData = {
-        name: userName,
-        email: userEmail,
+        name: ticketName,
+        email: ticketEmail,
         subject: supportData.subject.trim(),
         message: supportData.message.trim(),
         priority: supportData.priority || 'medium'
@@ -218,6 +217,8 @@ function Settings() {
       success('Support ticket submitted successfully. We will get back to you soon.')
       setShowSupportModal(false)
       setSupportData({
+        name: '',
+        email: '',
         subject: '',
         message: '',
         priority: 'medium'
@@ -475,7 +476,35 @@ function Settings() {
             
             <form onSubmit={handleSupportSubmit} className="modal-form">
               <div className="form-group">
-                <label>Subject</label>
+                <label>Name *</label>
+                <input
+                  type="text"
+                  value={supportData.name}
+                  onChange={(e) => setSupportData(prev => ({
+                    ...prev,
+                    name: e.target.value
+                  }))}
+                  placeholder={user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : "Your full name"}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Email *</label>
+                <input
+                  type="email"
+                  value={supportData.email}
+                  onChange={(e) => setSupportData(prev => ({
+                    ...prev,
+                    email: e.target.value
+                  }))}
+                  placeholder={user?.email || "your.email@example.com"}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Subject *</label>
                 <input
                   type="text"
                   value={supportData.subject}
