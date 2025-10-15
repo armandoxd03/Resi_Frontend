@@ -452,7 +452,7 @@ function Chat() {
                   disabled={sending}
                 />
                 <button type="submit" disabled={!newMessage.trim() || sending}>
-                  {sending ? '⏳' : '📤'}
+                  {sending ? '⏳' : '➤'}
                 </button>
               </form>
             </>
