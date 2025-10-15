@@ -198,7 +198,7 @@ function Chat() {
     <div className="chat-container">
       <div className="chat-layout">
         {/* Conversations Sidebar */}
-        <div className="conversations-sidebar">
+        <div className={`conversations-sidebar ${selectedConversation ? 'mobile-hide' : ''}`}>
           <div className="sidebar-header">
             <h2>Messages</h2>
             <div className="search-box">
@@ -254,7 +254,7 @@ function Chat() {
         </div>
 
         {/* Chat Area */}
-        <div className="chat-area">
+        <div className={`chat-area ${!selectedConversation ? 'mobile-hide' : ''}`}>
           {selectedConversation ? (
             <>
               <div className="chat-header">
@@ -754,12 +754,12 @@ const chatStyles = `
       height: 100vh;
     }
 
-    .conversations-sidebar {
-      display: ${selectedConversation ? 'none' : 'flex'};
+    .conversations-sidebar.mobile-hide {
+      display: none;
     }
 
-    .chat-area {
-      display: ${!selectedConversation ? 'none' : 'flex'};
+    .chat-area.mobile-hide {
+      display: none;
     }
 
     .message-content {
