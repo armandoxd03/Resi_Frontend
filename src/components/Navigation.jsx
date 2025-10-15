@@ -85,9 +85,9 @@ function Navigation() {
                   Find Jobs
                 </NavLink>
                 
-                <NavLink to="/messages">
+                <NavLink to="/chat">
                   <span className="nav-icon">💬</span>
-                  Messages
+                  Chat
                 </NavLink>
                 
                 {(user?.userType === 'employee' || user?.userType === 'both') && (
@@ -241,9 +241,9 @@ function Navigation() {
                 Find Jobs
               </NavLink>
               
-              <NavLink to="/messages">
+              <NavLink to="/chat">
                 <span className="nav-icon">💬</span>
-                Messages
+                Chat
               </NavLink>
               
               <NavLink to="/profile">

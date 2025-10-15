@@ -25,6 +25,7 @@ import ResetPassword from './components/ResetPassword'
 import VerifyEmail from './components/VerifyEmail'
 import Notifications from './components/Notifications'
 import Messages from './components/Messages'
+import Chat from './components/Chat'
 
 // Layout component
 import Layout from './components/Layout'
@@ -189,6 +190,12 @@ function App() {
             <Route path="/messages" element={
               <ProtectedRoute>
                 <Messages />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/chat" element={
+              <ProtectedRoute>
+                <Chat />
               </ProtectedRoute>
             } />
             
