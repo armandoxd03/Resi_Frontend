@@ -2464,6 +2464,10 @@ function AdminDashboard() {
         .action-btn.restore-btn {
           background: #3182ce;
           color: white;
+          width: auto;
+          min-width: 80px;
+          padding: 0.4rem 0.75rem;
+          font-weight: 600;
         }
         
         .action-btn.restore-btn:hover {
@@ -2473,6 +2477,10 @@ function AdminDashboard() {
         .action-btn.delete-permanent-btn {
           background: #e53e3e;
           color: white;
+          width: auto;
+          min-width: 140px;
+          padding: 0.4rem 0.75rem;
+          font-weight: 600;
         }
         
         .action-btn.delete-permanent-btn:hover {
