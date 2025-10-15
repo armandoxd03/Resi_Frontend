@@ -58,7 +58,7 @@ function Chat() {
     if (selectedConversation) {
       loadMessages(selectedConversation._id);
       
-      // Poll every 3 seconds for new messages
+      // Poll every 3 seconds for new messages (silently, no scroll)
       pollingInterval.current = setInterval(() => {
         loadMessages(selectedConversation._id, true);
       }, 3000);
@@ -71,16 +71,14 @@ function Chat() {
     };
   }, [selectedConversation]);
 
-  // Auto-scroll to bottom when new messages arrive (only if shouldScroll is true)
-  useEffect(() => {
-    if (shouldScroll && messages.length > 0) {
-      scrollToBottom();
-      setShouldScroll(false); // Reset after scrolling
-    }
-  }, [messages, shouldScroll]);
-
+  // Manual scroll only when user sends a message
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (shouldScroll) {
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        setShouldScroll(false);
+      }, 100);
+    }
   };
 
   const loadConversations = async () => {
@@ -175,8 +173,10 @@ function Chat() {
       });
       
       setNewMessage('');
-      setShouldScroll(true); // Enable scroll after sending
       await loadMessages(selectedConversation._id, true);
+      // Scroll after messages load
+      setShouldScroll(true);
+      scrollToBottom();
     } catch (error) {
       console.error('Failed to send message:', error);
       showError('Failed to send message');
