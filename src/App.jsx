@@ -8,7 +8,6 @@ import Login from './components/Login'
 import Register from './components/Register'
 import Landing from './components/Landing'
 import Profile from './components/Profile'
-import PostProfile from './components/PostProfile'
 import PostJob from './components/PostJob'
 import SearchJobs from './components/SearchJobs'
 import SearchWorkers from './components/SearchWorkers'
@@ -124,12 +123,6 @@ function App() {
             <Route path="/profile" element={
               <ProtectedRoute>
                 <Profile />
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/post-profile" element={
-              <ProtectedRoute>
-                <PostProfile />
               </ProtectedRoute>
             } />
             

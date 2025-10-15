@@ -268,10 +268,6 @@ function Navigation() {
                     <span className="nav-icon">📊</span>
                     Employee Dashboard
                   </NavLink>
-                  <NavLink to="/post-profile">
-                    <span className="nav-icon">📝</span>
-                    Post Profile
-                  </NavLink>
                 </>
               )}
 
