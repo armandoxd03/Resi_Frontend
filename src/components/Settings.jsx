@@ -168,8 +168,15 @@ function Settings() {
     e.preventDefault()
     
     try {
-      // This would typically send to a support system
-      // For now, we'll just show a success message
+      // Submit support ticket to backend with priority
+      await apiService.createSupportTicket({
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        subject: supportData.subject,
+        message: supportData.message,
+        priority: supportData.priority
+      })
+      
       success('Support ticket submitted successfully. We will get back to you soon.')
       setShowSupportModal(false)
       setSupportData({

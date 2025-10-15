@@ -2075,6 +2075,7 @@ function AdminDashboard() {
                           <th>Email</th>
                           <th>Subject</th>
                           <th>Message</th>
+                          <th>Priority</th>
                           <th>Status</th>
                           <th>Date</th>
                           <th>Actions</th>
@@ -2108,6 +2109,21 @@ function AdminDashboard() {
                                   ? ticket.message.substring(0, 60) + '...' 
                                   : ticket.message}
                               </div>
+                            </td>
+                            <td>
+                              <span className={`priority-badge ${ticket.priority || 'medium'}`} style={{
+                                padding: '4px 10px',
+                                borderRadius: '8px',
+                                fontSize: '0.8rem',
+                                fontWeight: '600',
+                                background: 
+                                  ticket.priority === 'urgent' ? '#ff1744' :
+                                  ticket.priority === 'high' ? '#ff6f00' :
+                                  ticket.priority === 'low' ? '#00c853' : '#ffa726',
+                                color: 'white'
+                              }}>
+                                {ticket.priority ? ticket.priority.toUpperCase() : 'MEDIUM'}
+                              </span>
                             </td>
                             <td>
                               <span className={`status-badge ${ticket.status}`} style={{
