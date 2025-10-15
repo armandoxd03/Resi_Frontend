@@ -26,6 +26,7 @@ class ApiService {
       "/users/goals",
       "/users/applications",
       "/users/notifications",
+      "/users/search",
       "/jobs/my-jobs",
       "/jobs/my-applications",
       "/jobs/my-matches",
@@ -661,6 +662,11 @@ class ApiService {
   }
 
   async searchUsers(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/users/search${query ? "?" + query : ""}`);
+  }
+
+  async searchUsersAdmin(params = {}) {
     const query = new URLSearchParams(params).toString();
     return this.request(`/admin/users${query ? "?" + query : ""}`);
   }
