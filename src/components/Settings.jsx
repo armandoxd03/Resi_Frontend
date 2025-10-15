@@ -174,17 +174,39 @@ function Settings() {
         return
       }
 
-      if (!user || !user.email) {
-        showError('User information not available. Please log in again.')
+      // Try to get user info from multiple sources
+      let userEmail = user?.email
+      let userName = ''
+
+      // If user context not available, try localStorage
+      if (!userEmail) {
+        const userData = localStorage.getItem('userData')
+        if (userData) {
+          try {
+            const parsedUser = JSON.parse(userData)
+            userEmail = parsedUser.email
+            userName = parsedUser.firstName && parsedUser.lastName
+              ? `${parsedUser.firstName} ${parsedUser.lastName}`.trim()
+              : parsedUser.email?.split('@')[0] || 'User'
+          } catch (e) {
+            console.error('Error parsing user data:', e)
+          }
+        }
+      } else {
+        userName = user.firstName && user.lastName 
+          ? `${user.firstName} ${user.lastName}`.trim()
+          : user.email?.split('@')[0] || 'User'
+      }
+
+      if (!userEmail) {
+        showError('Unable to retrieve your email. Please refresh and try again.')
         return
       }
 
       // Submit support ticket to backend with priority
       const ticketData = {
-        name: user.firstName && user.lastName 
-          ? `${user.firstName} ${user.lastName}`.trim()
-          : user.email.split('@')[0], // Fallback to email username
-        email: user.email,
+        name: userName,
+        email: userEmail,
         subject: supportData.subject.trim(),
         message: supportData.message.trim(),
         priority: supportData.priority || 'medium'
