@@ -616,6 +616,36 @@ class ApiService {
     });
   }
 
+  // ================= Support Tickets =================
+  async createSupportTicket(ticketData) {
+    return this.request("/support", {
+      method: "POST",
+      body: ticketData,
+    });
+  }
+
+  async getSupportTickets(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/support${query ? "?" + query : ""}`);
+  }
+
+  async getSupportTicket(ticketId) {
+    return this.request(`/support/${ticketId}`);
+  }
+
+  async updateSupportTicket(ticketId, updateData) {
+    return this.request(`/support/${ticketId}`, {
+      method: "PATCH",
+      body: updateData,
+    });
+  }
+
+  async deleteSupportTicket(ticketId) {
+    return this.request(`/support/${ticketId}`, {
+      method: "DELETE",
+    });
+  }
+
   // ================= Messages =================
   async sendMessage(messageData) {
     return this.request("/messages", {
