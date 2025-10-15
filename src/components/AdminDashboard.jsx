@@ -674,8 +674,15 @@ function AdminDashboard() {
   const loadSupportTickets = async () => {
     try {
       const apiService = await import('../api').then(module => module.default);
-      const response = await apiService.getSupportTickets({ status: ticketStatusFilter !== 'all' ? ticketStatusFilter : undefined });
+      const params = ticketStatusFilter !== 'all' ? { status: ticketStatusFilter } : {};
+      console.log('Loading support tickets with params:', params);
+      
+      const response = await apiService.getSupportTickets(params);
+      console.log('Support tickets response:', response);
+      
       const tickets = response.tickets || response.data?.tickets || [];
+      console.log('Extracted tickets:', tickets);
+      
       setSupportTickets(tickets);
     } catch (error) {
       console.error('Error loading support tickets:', error);
