@@ -391,12 +391,15 @@ function AdminDashboard() {
     totalUsers: 0,
     totalJobs: 0,
     totalRatings: 0,
-    totalReports: 0
+    totalReports: 0,
+    totalSupportTickets: 0
   })
   const [users, setUsers] = useState([])
   const [jobs, setJobs] = useState([])
   const [reports, setReports] = useState([])
   const [reportStatusFilter, setReportStatusFilter] = useState('all')
+  const [supportTickets, setSupportTickets] = useState([])
+  const [ticketStatusFilter, setTicketStatusFilter] = useState('all')
   const [deletedUsers, setDeletedUsers] = useState([])
   const [deletedJobs, setDeletedJobs] = useState([])
   const [deletedGoals, setDeletedGoals] = useState([])
@@ -504,6 +507,9 @@ function AdminDashboard() {
           break
         case 'reports':
           await loadReports()
+          break
+        case 'support':
+          await loadSupportTickets()
           break
         case 'deleted':
           await loadDeletedItems(deletedItemType)
@@ -662,6 +668,30 @@ function AdminDashboard() {
     } catch (error) {
       console.error('Error loading reports:', error);
       showError('Failed to load reports');
+    }
+  }
+
+  const loadSupportTickets = async () => {
+    try {
+      const apiService = await import('../api').then(module => module.default);
+      const response = await apiService.getSupportTickets({ status: ticketStatusFilter !== 'all' ? ticketStatusFilter : undefined });
+      const tickets = response.tickets || response.data?.tickets || [];
+      setSupportTickets(tickets);
+    } catch (error) {
+      console.error('Error loading support tickets:', error);
+      showError('Failed to load support tickets');
+    }
+  }
+
+  const handleTicketStatusUpdate = async (ticketId, newStatus) => {
+    try {
+      const apiService = await import('../api').then(module => module.default);
+      await apiService.updateSupportTicket(ticketId, { status: newStatus });
+      showSuccess(`Ticket ${newStatus} successfully`);
+      await loadSupportTickets();
+    } catch (error) {
+      console.error('Error updating ticket status:', error);
+      showError('Failed to update ticket status');
     }
   }
 
@@ -1246,6 +1276,12 @@ function AdminDashboard() {
           onClick={() => handleTabChange('reports')}
         >
           Reports
+        </button>
+        <button 
+          className={`tab-btn ${currentTab === 'support' ? 'active' : ''}`}
+          onClick={() => handleTabChange('support')}
+        >
+          Support Tickets
         </button>
         <button 
           className={`tab-btn ${currentTab === 'deleted' ? 'active' : ''}`}
@@ -1980,6 +2016,149 @@ function AdminDashboard() {
                                     className="btn-action reopen"
                                     onClick={() => handleReportStatusUpdate(report._id, 'pending')}
                                     title="Reopen Report"
+                                  >
+                                    ↻
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {/* Support Tickets Tab */}
+            {currentTab === 'support' && (
+              <div className="support-tickets-content">
+                {/* Support Tickets Header */}
+                <div className="support-header">
+                  <h3>Support Tickets</h3>
+                  <p>Manage support requests from users</p>
+                </div>
+
+                {/* Ticket Status Filter */}
+                <div className="support-filter">
+                  <label htmlFor="ticket-status-filter">Filter by Status:</label>
+                  <select 
+                    id="ticket-status-filter"
+                    value={ticketStatusFilter} 
+                    onChange={(e) => {
+                      setTicketStatusFilter(e.target.value);
+                      loadSupportTickets();
+                    }}
+                    className="filter-select"
+                  >
+                    <option value="all">All Tickets</option>
+                    <option value="open">Open</option>
+                    <option value="in-progress">In Progress</option>
+                    <option value="resolved">Resolved</option>
+                    <option value="closed">Closed</option>
+                  </select>
+                  <span className="ticket-count">{supportTickets.length} tickets found</span>
+                </div>
+
+                {/* Support Tickets List */}
+                {supportTickets.length === 0 ? (
+                  <div className="no-data">
+                    <p>No support tickets found</p>
+                  </div>
+                ) : (
+                  <div className="support-table-container">
+                    <table className="support-table">
+                      <thead>
+                        <tr>
+                          <th>Name</th>
+                          <th>Email</th>
+                          <th>Subject</th>
+                          <th>Message</th>
+                          <th>Status</th>
+                          <th>Date</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {supportTickets.map(ticket => (
+                          <tr key={ticket._id}>
+                            <td>
+                              <strong>{ticket.name}</strong>
+                              {ticket.user && (
+                                <small style={{ display: 'block', color: '#666' }}>
+                                  User ID: {ticket.user._id || ticket.user}
+                                </small>
+                              )}
+                            </td>
+                            <td>{ticket.email}</td>
+                            <td>
+                              <span className="subject-badge" style={{ 
+                                padding: '4px 8px', 
+                                borderRadius: '4px', 
+                                background: '#e3f2fd',
+                                fontSize: '0.85rem'
+                              }}>
+                                {ticket.subject}
+                              </span>
+                            </td>
+                            <td>
+                              <div className="message-cell" title={ticket.message}>
+                                {ticket.message.length > 60 
+                                  ? ticket.message.substring(0, 60) + '...' 
+                                  : ticket.message}
+                              </div>
+                            </td>
+                            <td>
+                              <span className={`status-badge ${ticket.status}`} style={{
+                                padding: '4px 12px',
+                                borderRadius: '12px',
+                                fontSize: '0.85rem',
+                                fontWeight: '500'
+                              }}>
+                                {ticket.status === 'in-progress' ? 'In Progress' : 
+                                 ticket.status.charAt(0).toUpperCase() + ticket.status.slice(1)}
+                              </span>
+                            </td>
+                            <td>
+                              <small>{formatDate(ticket.createdAt, 'short')}</small>
+                            </td>
+                            <td>
+                              <div className="action-buttons">
+                                {ticket.status === 'open' && (
+                                  <button
+                                    className="btn-action"
+                                    onClick={() => handleTicketStatusUpdate(ticket._id, 'in-progress')}
+                                    title="Mark as In Progress"
+                                    style={{ background: '#ffa726', color: 'white' }}
+                                  >
+                                    ▶
+                                  </button>
+                                )}
+                                {(ticket.status === 'open' || ticket.status === 'in-progress') && (
+                                  <button
+                                    className="btn-action resolve"
+                                    onClick={() => handleTicketStatusUpdate(ticket._id, 'resolved')}
+                                    title="Mark as Resolved"
+                                  >
+                                    ✓
+                                  </button>
+                                )}
+                                {ticket.status === 'resolved' && (
+                                  <button
+                                    className="btn-action"
+                                    onClick={() => handleTicketStatusUpdate(ticket._id, 'closed')}
+                                    title="Close Ticket"
+                                    style={{ background: '#757575', color: 'white' }}
+                                  >
+                                    ✗
+                                  </button>
+                                )}
+                                {ticket.status === 'closed' && (
+                                  <button
+                                    className="btn-action reopen"
+                                    onClick={() => handleTicketStatusUpdate(ticket._id, 'open')}
+                                    title="Reopen Ticket"
                                   >
                                     ↻
                                   </button>
