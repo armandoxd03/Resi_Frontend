@@ -73,9 +73,12 @@ function Chat() {
 
   // Manual scroll only when user sends a message
   const scrollToBottom = () => {
-    if (shouldScroll) {
+    if (shouldScroll && messagesEndRef.current) {
       setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        const messagesContainer = messagesEndRef.current.parentElement;
+        if (messagesContainer) {
+          messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
         setShouldScroll(false);
       }, 100);
     }
