@@ -12,6 +12,8 @@ function Chat() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
   const messagesEndRef = useRef(null);
   const pollingInterval = useRef(null);
   
@@ -22,6 +24,23 @@ function Chat() {
   useEffect(() => {
     loadConversations();
   }, []);
+
+  // Search users when searchQuery changes
+  useEffect(() => {
+    if (searchQuery.trim().length > 0) {
+      setSearching(true);
+      apiService.searchUsers({ search: searchQuery.trim() })
+        .then(res => {
+          const users = res?.data?.users || res?.data?.data?.users || [];
+          // Exclude self
+          setSearchResults(users.filter(u => u._id !== user._id));
+        })
+        .catch(() => setSearchResults([]))
+        .finally(() => setSearching(false));
+    } else {
+      setSearchResults([]);
+    }
+  }, [searchQuery, user._id]);
 
   // Poll for new messages when a conversation is selected
   useEffect(() => {
@@ -159,11 +178,30 @@ function Chat() {
     }
   };
 
-  const filteredConversations = conversations.filter(conv =>
-    `${conv.user.firstName} ${conv.user.lastName}`
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase())
-  );
+  const filteredConversations = searchQuery.trim().length === 0
+    ? conversations
+    : conversations.filter(conv =>
+        `${conv.user.firstName} ${conv.user.lastName}`
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase())
+      );
+  // Start new conversation with searched user
+  const handleStartConversation = (userObj) => {
+    // Check if conversation already exists
+    const existingConv = conversations.find(conv => conv.user._id === userObj._id);
+    if (existingConv) {
+      setSelectedConversation(existingConv);
+    } else {
+      // Create a temporary conversation object
+      setSelectedConversation({
+        _id: userObj._id,
+        user: userObj,
+        lastMessage: {},
+        unreadCount: 0
+      });
+      setMessages([]);
+    }
+  };
 
   const formatTime = (date) => {
     const msgDate = new Date(date);
@@ -204,13 +242,44 @@ function Chat() {
             <div className="search-box">
               <input
                 type="text"
-                placeholder="Search conversations..."
+                placeholder="Search users or conversations..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
               <span className="search-icon">🔍</span>
             </div>
           </div>
+
+          {/* Show user search results if searching and results exist */}
+          {searchQuery.trim().length > 0 && searchResults.length > 0 && (
+            <div className="search-results-list">
+              <div className="search-results-header">Users</div>
+              {searchResults.map(userObj => (
+                <div
+                  key={userObj._id}
+                  className="conversation-item"
+                  onClick={() => handleStartConversation(userObj)}
+                >
+                  <div className="conv-avatar">
+                    {userObj.profilePicture ? (
+                      <img src={getProfilePictureUrl(userObj)} alt={userObj.firstName} />
+                    ) : (
+                      <div className="avatar-placeholder">
+                        {userObj.firstName?.[0]}{userObj.lastName?.[0]}
+                      </div>
+                    )}
+                    <span className="online-indicator"></span>
+                  </div>
+                  <div className="conv-info">
+                    <div className="conv-header">
+                      <h3>{userObj.firstName} {userObj.lastName}</h3>
+                      <span className="user-type">{userObj.userType}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           <div className="conversations-list">
             {filteredConversations.length === 0 ? (
@@ -338,6 +407,17 @@ function Chat() {
 }
 
 const chatStyles = `
+  .search-results-list {
+    border-bottom: 1px solid #e2e8f0;
+    background: #f3f4f6;
+    padding: 0.5rem 0;
+  }
+  .search-results-header {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #6366f1;
+    padding: 0.5rem 1.5rem 0.25rem 1.5rem;
+  }
   .chat-container {
     max-width: 1400px;
     margin: 0 auto;
