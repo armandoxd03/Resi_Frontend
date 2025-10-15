@@ -14,6 +14,7 @@ function Chat() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
+  const [shouldScroll, setShouldScroll] = useState(true);
   const messagesEndRef = useRef(null);
   const pollingInterval = useRef(null);
   
@@ -70,10 +71,13 @@ function Chat() {
     };
   }, [selectedConversation]);
 
-  // Auto-scroll to bottom when new messages arrive
+  // Auto-scroll to bottom when new messages arrive (only if shouldScroll is true)
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    if (shouldScroll && messages.length > 0) {
+      scrollToBottom();
+      setShouldScroll(false); // Reset after scrolling
+    }
+  }, [messages, shouldScroll]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -171,8 +175,8 @@ function Chat() {
       });
       
       setNewMessage('');
+      setShouldScroll(true); // Enable scroll after sending
       await loadMessages(selectedConversation._id, true);
-      scrollToBottom();
     } catch (error) {
       console.error('Failed to send message:', error);
       showError('Failed to send message');
