@@ -1,12 +1,14 @@
 import { useState, useContext } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { AuthContext } from '../context/AuthContext'
 import { AlertContext } from '../context/AlertContext'
+import apiService from '../api'
 import styles from './Help.module.css'
 
 function Help() {
   const { user, token } = useContext(AuthContext)
-  const { showAlert } = useContext(AlertContext)
+  const { showAlert, error: showError } = useContext(AlertContext)
+  const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState('')
   const [activeItems, setActiveItems] = useState(new Set())
   const [showSupportModal, setShowSupportModal] = useState(false)
@@ -136,6 +138,24 @@ function Help() {
     )
   }
 
+  const openSupportChat = async () => {
+    try {
+      // Get support contact (admin)
+      const response = await apiService.getSupportContact()
+      const supportContact = response.supportContact || response.data?.supportContact
+      
+      if (supportContact) {
+        // Navigate to chat with support contact pre-selected
+        navigate('/chat', { state: { supportContact } })
+      } else {
+        showError('Support contact not available')
+      }
+    } catch (error) {
+      console.error('Error loading support contact:', error)
+      showError('Failed to connect to support. Please try again.')
+    }
+  }
+
   const openSupportModal = () => {
     // Pre-populate form with user data if available
     if (user) {
@@ -255,9 +275,13 @@ function Help() {
         <div className="sidebar">
           <div className="contact-card">
             <h3><i className="fas fa-headset"></i> Need Help?</h3>
-            <button className="contact-btn" onClick={openSupportModal}>
+            <button className="contact-btn" onClick={openSupportChat}>
+              <i className="fas fa-comments"></i>
+              Chat with Support
+            </button>
+            <button className="contact-btn secondary" onClick={openSupportModal} style={{ marginTop: '10px', background: '#6c757d' }}>
               <i className="fas fa-envelope"></i>
-              Contact Support
+              Email Support
             </button>
             
             <div className="contact-info">

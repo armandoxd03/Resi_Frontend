@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useAlert } from '../context/AlertContext';
+import { useLocation } from 'react-router-dom';
 import apiService from '../api';
 import { getProfilePictureUrl } from '../utils/imageHelper';
 
@@ -20,10 +21,18 @@ function Chat() {
   
   const { user } = useAuth();
   const { success, error: showError } = useAlert();
+  const location = useLocation();
 
-  // Load conversations on mount
+  // Load conversations on mount and handle support contact from navigation state
   useEffect(() => {
     loadConversations();
+    
+    // If coming from Help page with support contact, start conversation
+    if (location.state?.supportContact) {
+      handleStartConversation(location.state.supportContact);
+      // Clear the state so it doesn't trigger again
+      window.history.replaceState({}, document.title);
+    }
   }, []);
 
   // Search users when searchQuery changes

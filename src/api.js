@@ -27,6 +27,7 @@ class ApiService {
       "/users/applications",
       "/users/notifications",
       "/users/search",
+      "/users/support-contact",
       "/jobs/my-jobs",
       "/jobs/my-applications",
       "/jobs/my-matches",
@@ -664,6 +665,10 @@ class ApiService {
   async searchUsers(params = {}) {
     const query = new URLSearchParams(params).toString();
     return this.request(`/users/search${query ? "?" + query : ""}`);
+  }
+
+  async getSupportContact() {
+    return this.request("/users/support-contact");
   }
 
   async searchUsersAdmin(params = {}) {
